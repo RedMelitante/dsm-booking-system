@@ -2,6 +2,9 @@
 // Markup, inline styles and copy are kept as designed; the logic class is the board's own.
 import React from 'react';
 import { DCLogic } from '../lib/dc.js';
+import { HOST, withHost } from '../lib/site.js';
+import { api, getMe } from '../lib/api.js';
+import { navigate } from '../lib/router.js';
 import { RESERVED_SLUGS } from '../lib/reserved.js';
 import { browserTimeZone } from '../lib/clock.js';
 
@@ -17,16 +20,95 @@ class SetupPageLogic extends DCLogic {
       site: '',
       template: null,
       currency: 'PHP',
-      tz: browserTimeZone(['Asia/Manila', 'Asia/Singapore', 'Australia/Perth', 'Australia/Brisbane', 'Australia/Sydney', 'Pacific/Auckland', 'America/Los_Angeles', 'Europe/London'], 'Asia/Manila'),
+      tz: browserTimeZone(
+        [
+          'Asia/Manila',
+          'Asia/Singapore',
+          'Australia/Perth',
+          'Australia/Brisbane',
+          'Australia/Sydney',
+          'Pacific/Auckland',
+          'America/Los_Angeles',
+          'Europe/London',
+        ],
+        'Asia/Manila',
+      ),
       tried1: false,
       tried2: false,
+      check: { slug: '', status: '', message: '', suggestions: [] },
+      busy: false,
+      finishErr: '',
     };
+    // Homepage hero passes ?slug= through sign-up.
+    var qs = new URLSearchParams(window.location.search);
+    if (qs.get('slug')) {
+      this.state.slug = this.slugify(qs.get('slug'));
+      this.state.slugEdited = true;
+    }
     this.rootRef = (el) => {
       this.el = el;
     };
   }
 
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState.slug !== this.state.slug) this.queueCheck();
+  }
+
+  // Availability is checked against the database as the owner types (debounced).
+  queueCheck() {
+    clearTimeout(this.checkTimer);
+    var slug = String(this.state.slug || '').replace(/-+$/, '');
+    if (slug.length < 3 || RESERVED_SLUGS.indexOf(slug) >= 0) return;
+    this.checkTimer = setTimeout(async () => {
+      try {
+        var r = await api('/slugs/' + encodeURIComponent(slug));
+        if (String(this.state.slug || '').replace(/-+$/, '') === slug) this.setState({ check: r });
+      } catch (e) {
+        if (e.status === 401) navigate('/login?next=/setup', { replace: true });
+      }
+    }, 300);
+  }
+
+  async finish() {
+    var s = this.state;
+    if (s.busy) return;
+    this.setState({ busy: true, finishErr: '' });
+    try {
+      await api('/businesses', {
+        method: 'POST',
+        body: {
+          name: s.name.trim(),
+          slug: String(s.slug).replace(/-+$/, ''),
+          website: s.site.trim(),
+          template: s.template,
+          currency: s.currency,
+          timezone: s.tz,
+        },
+      });
+      await getMe(true);
+      navigate('/dashboard');
+    } catch (e) {
+      var errs = (e.data && e.data.errors) || {};
+      if (errs.slug || errs.name) {
+        this.setState({ busy: false, step: 1, tried1: true, check: e.data.slugStatus || this.state.check });
+      } else {
+        this.setState({ busy: false, finishErr: e.message });
+      }
+    }
+  }
+
+  async logout() {
+    try {
+      await api('/auth/logout', { method: 'POST' });
+    } catch (e) {
+      /* ignore */
+    }
+    await getMe(true).catch(function () {});
+    navigate('/');
+  }
+
   componentDidMount() {
+    if (this.state.slug) this.queueCheck();
     this.measure();
     try {
       if (typeof ResizeObserver !== 'undefined' && this.el) {
@@ -37,6 +119,7 @@ class SetupPageLogic extends DCLogic {
   }
 
   componentWillUnmount() {
+    clearTimeout(this.checkTimer);
     try {
       if (this.ro) this.ro.disconnect();
     } catch (e) {}
@@ -69,7 +152,6 @@ class SetupPageLogic extends DCLogic {
     // ---- step 1: slug claim
     var slug = String(s.slug || '').replace(/-+$/, '');
     var RESERVED = RESERVED_SLUGS;
-    var TAKEN = ['lumen-skin-studio', 'brightside-dental', 'snapshot-booth-co', 'glow', 'smile', 'smiles'];
     var status = 'empty',
       msg = 'Pick a short web address for your page.';
     if (slug.length > 0 && slug.length < 3) {
@@ -78,12 +160,12 @@ class SetupPageLogic extends DCLogic {
     } else if (RESERVED.indexOf(slug) >= 0) {
       status = 'error';
       msg = 'That address is reserved. Try another.';
-    } else if (TAKEN.indexOf(slug) >= 0) {
-      status = 'taken';
-      msg = '[domain]/' + slug + ' is already taken.';
+    } else if (slug.length >= 3 && s.check.slug === slug) {
+      status = s.check.status;
+      msg = withHost(s.check.message);
     } else if (slug.length >= 3) {
-      status = 'ok';
-      msg = '[domain]/' + slug + ' is available.';
+      status = 'checking';
+      msg = 'Checking ' + HOST + '/' + slug + '…';
     }
     if (status === 'empty' && s.tried1) {
       status = 'error';
@@ -91,7 +173,7 @@ class SetupPageLogic extends DCLogic {
     }
     var suggest =
       status === 'taken'
-        ? [slug + '-ph', slug + '-bookings', slug + '-2'].map(function (x) {
+        ? (s.check.suggestions || []).map(function (x) {
             return {
               label: x,
               pick: function () {
@@ -170,7 +252,7 @@ class SetupPageLogic extends DCLogic {
       GBP: 'British pound (£)',
     };
     var summary = [
-      { k: 'Booking page', v: '[domain]/' + (slug || 'your-business') },
+      { k: 'Booking page', v: HOST + '/' + (slug || 'your-business') },
       { k: 'Business', v: String(s.name || '').trim() || 'Your business' },
       {
         k: 'Template',
@@ -245,7 +327,7 @@ class SetupPageLogic extends DCLogic {
       pickBlank: function () {
         self.setState({ template: 'blank', tried2: false });
       },
-      tplBad: s.tried2 && !s.template,
+      tplBad: (s.tried2 && !s.template) || !!s.finishErr,
       currency: s.currency,
       setCurrency: function (e) {
         self.setState({ currency: e.target.value });
@@ -258,9 +340,16 @@ class SetupPageLogic extends DCLogic {
       back: function () {
         self.setState({ step: 1 });
       },
-      canFinish: !!s.template,
-      cantFinish: !s.template,
+      canFinish: false,
+      cantFinish: true,
+      finishLabel: s.busy ? 'Creating your page…' : 'Create my booking page',
+      finishErr: s.finishErr,
+      logout: function (e) {
+        e.preventDefault();
+        self.logout();
+      },
       tryFinish: function () {
+        if (self.state.template) return self.finish();
         self.setState({ tried2: true });
       },
     };
@@ -335,7 +424,7 @@ export default class SetupPage extends SetupPageLogic {
               Digital Services Master
             </span>
           </span>
-          <a href="/" style={{ fontSize: '14px', fontWeight: '600', color: '#4A505C' }}>
+          <a href="/" onClick={v.logout} style={{ fontSize: '14px', fontWeight: '600', color: '#4A505C' }}>
             Log out
           </a>
         </header>
@@ -491,7 +580,7 @@ export default class SetupPage extends SetupPageLogic {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        [domain]/
+                        {HOST}/
                       </span>
                       <input
                         id="ob-slug"
@@ -689,7 +778,7 @@ export default class SetupPage extends SetupPageLogic {
                             textOverflow: 'ellipsis',
                           }}
                         >
-                          [domain]/{v.previewSlug}
+                          {HOST}/{v.previewSlug}
                         </span>
                       </span>
                     </div>
@@ -967,7 +1056,7 @@ export default class SetupPage extends SetupPageLogic {
                             <circle cx="12" cy="12" r="9" />
                             <path d="M12 7.5v5.5M12 16.5v.01" />
                           </svg>
-                          Choose a template, or start from scratch.
+                          {v.finishErr || 'Choose a template, or start from scratch.'}
                         </span>
                       </>
                     ) : null}
@@ -1147,45 +1236,6 @@ export default class SetupPage extends SetupPageLogic {
                       </svg>
                       {' Back'}
                     </button>
-                    {v.canFinish ? (
-                      <>
-                        <a
-                          href="/dashboard"
-                          style={{
-                            flex: '1 1 220px',
-                            maxWidth: '320px',
-                            height: '48px',
-                            padding: '0 22px',
-                            borderRadius: '12px',
-                            background: '#0F1115',
-                            color: '#FFFFFF',
-                            textDecoration: 'none',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            fontSize: '15px',
-                            fontWeight: '700',
-                            boxSizing: 'border-box',
-                          }}
-                        >
-                          {'Create my booking page '}
-                          <svg
-                            aria-hidden="true"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M5 12h14M13 6l6 6-6 6" />
-                          </svg>
-                        </a>
-                      </>
-                    ) : null}
                     {v.cantFinish ? (
                       <>
                         <button
@@ -1206,7 +1256,7 @@ export default class SetupPage extends SetupPageLogic {
                             cursor: 'pointer',
                           }}
                         >
-                          Create my booking page
+                          {v.finishLabel}
                         </button>
                       </>
                     ) : null}

@@ -58,3 +58,18 @@ export function browserTimeZone(allowed, fallback) {
   }
   return fallback;
 }
+
+// UTC offset of `tz` right now, in hours (e.g. 8, -7, 5.5). null for an unknown zone.
+export function offsetHours(tz) {
+  try {
+    const now = Date.now();
+    const p = {};
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' })
+      .formatToParts(new Date(now))
+      .forEach((x) => { p[x.type] = x.value; });
+    const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute);
+    return Math.round((asUtc - Math.floor(now / 60000) * 60000) / 900000) / 4;
+  } catch (e) {
+    return null;
+  }
+}

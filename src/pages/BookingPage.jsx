@@ -2,8 +2,11 @@
 // Markup, inline styles and copy are kept as designed; the logic class is the board's own.
 import React from 'react';
 import { DCLogic } from '../lib/dc.js';
-import { todayParts, nowMinutes, browserTimeZone } from '../lib/clock.js';
+import { todayParts, browserTimeZone, offsetHours } from '../lib/clock.js';
 import { googleCalendarUrl, icsDataUrl } from '../lib/calendar.js';
+import { api } from '../lib/api.js';
+
+const DIAL = { PHP: '+63', AUD: '+61', USD: '+1', SGD: '+65', NZD: '+64', GBP: '+44' };
 
 class BookingPageLogic extends DCLogic {
   constructor(...args) {
@@ -23,6 +26,10 @@ class BookingPageLogic extends DCLogic {
       email: '',
       phone: '',
       cc: '+63',
+      avail: {},
+      submitting: false,
+      submitErr: '',
+      booking: null,
       answers: {},
       agree: false,
       sms: true,
@@ -36,18 +43,75 @@ class BookingPageLogic extends DCLogic {
 
   // Embed deep links: &service=[id] and &staff=[id] preselect a choice.
   applyDeepLink(props) {
-    var demoProp = String(props.demo || 'Aesthetic clinic');
-    var dk = demoProp.indexOf('Dental') === 0 ? 'dental' : demoProp.indexOf('Photo') === 0 ? 'events' : 'aesthetic';
-    var D = this.demos()[dk];
-    // Slots default to the visitor's browser time zone when it is one we list.
-    var tz = browserTimeZone(this.tzs().map((z) => z.id), null);
-    if (tz && tz !== D.biz.tzId) this.state.tz = tz;
+    var D = props.data;
+    this.state.cc = DIAL[D.biz.currency] || '+63';
+    // Slots default to the visitor's browser time zone.
+    var tz = browserTimeZone(null, null);
+    if (tz && tz !== D.biz.tzId && offsetHours(tz) !== null) this.state.tz = tz;
     if (props.service && D.services.some((x) => x.id === props.service)) this.state.serviceId = props.service;
     if (props.hideStaff) this.state.staffId = 'any';
-    if (props.staff && (props.staff === 'any' || D.staff.some((x) => x.id === props.staff))) this.state.staffId = props.staff;
+    if (props.staff && (props.staff === 'any' || D.staff.some((x) => x.id === props.staff)))
+      this.state.staffId = props.staff;
+  }
+
+  // Open start times come from the API, per service and staff member:
+  // avail[serviceId] = { status: 'loading' | 'ok' | 'error', staff: { [staffId]: { 'YYYY-MM-DD': [minutes] } } }
+  async loadAvail(serviceId, force) {
+    if (!serviceId) return;
+    var cur = this.state.avail[serviceId];
+    if (cur && !force && cur.status !== 'error') return;
+    var setA = (v) => this.setState((st) => ({ avail: Object.assign({}, st.avail, { [serviceId]: v }) }));
+    setA({ status: 'loading', staff: (cur && cur.staff) || {} });
+    try {
+      var r = await api(
+        '/public/' +
+          encodeURIComponent(this.props.data.biz.slug) +
+          '/availability?service=' +
+          encodeURIComponent(serviceId),
+      );
+      setA({ status: 'ok', staff: r.staff });
+    } catch (e) {
+      setA({ status: 'error', staff: {}, error: e.message });
+    }
+  }
+
+  async submit() {
+    var s = this.state;
+    var p = this.props;
+    if (s.submitting) return;
+    this.setState({ submitting: true, submitErr: '' });
+    try {
+      var r = await api('/public/' + encodeURIComponent(p.data.biz.slug) + '/bookings', {
+        method: 'POST',
+        body: {
+          serviceId: s.serviceId,
+          staffId: s.staffId || 'any',
+          date: s.date,
+          time: s.time,
+          addons: s.addons,
+          firstName: s.first.trim(),
+          lastName: s.last.trim(),
+          email: s.email.trim(),
+          phone: s.phone.trim() ? s.cc + ' ' + s.phone.trim() : '',
+          sms: s.sms,
+          answers: s.answers,
+          agree: s.agree,
+          embed: !!p.embed,
+        },
+      });
+      this.setState({ submitting: false, booking: r.booking, step: 5 });
+    } catch (e) {
+      if (e.status === 409) {
+        this.setState({ submitting: false, step: 3, time: null, submitErr: e.message });
+        this.loadAvail(s.serviceId, true);
+      } else {
+        this.setState({ submitting: false, submitErr: e.message });
+      }
+    }
   }
 
   componentDidMount() {
+    if (this.state.serviceId) this.loadAvail(this.state.serviceId);
     this.measure();
     try {
       if (typeof ResizeObserver !== 'undefined' && this.el) {
@@ -57,21 +121,8 @@ class BookingPageLogic extends DCLogic {
     } catch (e) {}
   }
 
-  componentDidUpdate(prev) {
-    if (prev && prev.demo !== this.props.demo) {
-      this.setState({
-        step: 1,
-        cat: 'all',
-        serviceId: null,
-        addons: [],
-        staffId: null,
-        monthOffset: 0,
-        date: null,
-        time: null,
-        tz: null,
-        answers: {},
-      });
-    }
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState.serviceId !== this.state.serviceId) this.loadAvail(this.state.serviceId);
   }
 
   componentWillUnmount() {
@@ -132,6 +183,7 @@ class BookingPageLogic extends DCLogic {
   }
 
   money(cur, n) {
+    if (this.props.data && this.props.data.settings.prices === false) return '';
     if (!n) return 'Free';
     return cur + Number(n).toLocaleString('en-US');
   }
@@ -156,51 +208,42 @@ class BookingPageLogic extends DCLogic {
     return h >>> 0;
   }
 
-  tzs() {
-    return [
-      { id: 'Asia/Manila', city: 'Manila', off: 8 },
-      { id: 'Asia/Singapore', city: 'Singapore', off: 8 },
-      { id: 'Australia/Perth', city: 'Perth', off: 8 },
-      { id: 'Australia/Brisbane', city: 'Brisbane', off: 10 },
-      { id: 'Australia/Sydney', city: 'Sydney', off: 11 },
-      { id: 'Asia/Dubai', city: 'Dubai', off: 4 },
-      { id: 'Europe/London', city: 'London', off: 0 },
-      { id: 'America/New_York', city: 'New York', off: -5 },
-      { id: 'America/Los_Angeles', city: 'Los Angeles', off: -8 },
+  tzs(bizTz) {
+    var list = [
+      { id: 'Asia/Manila', city: 'Manila' },
+      { id: 'Asia/Singapore', city: 'Singapore' },
+      { id: 'Australia/Perth', city: 'Perth' },
+      { id: 'Australia/Brisbane', city: 'Brisbane' },
+      { id: 'Australia/Sydney', city: 'Sydney' },
+      { id: 'Pacific/Auckland', city: 'Auckland' },
+      { id: 'Asia/Dubai', city: 'Dubai' },
+      { id: 'Europe/London', city: 'London' },
+      { id: 'America/New_York', city: 'New York' },
+      { id: 'America/Los_Angeles', city: 'Los Angeles' },
     ];
+    var city = (id) => id.split('/').pop().replace(/_/g, ' ');
+    [bizTz, this.state.tz].forEach(function (id) {
+      if (id && !list.some((z) => z.id === id)) list.unshift({ id: id, city: city(id) });
+    });
+    return list.map((z) => Object.assign(z, { off: offsetHours(z.id) || 0 }));
   }
 
-  slotsFor(D, dt, staffId, dur) {
-    var T = todayParts(D.biz.tzId);
-    var today = new Date(T.y, T.m, T.d);
-    var diff = Math.round((dt - today) / 86400000);
-    var dow = dt.getDay();
-    var b = D.biz;
-    if (diff < 0 || diff > 60) return [];
-    if (b.closed.indexOf(dow) >= 0) return [];
+  slotsFor(D, dt, staffId) {
+    var av = this.state.avail[this.state.serviceId];
+    if (!av || !av.staff) return [];
     var k = this.dkey(dt);
-    if (this.hash(k + b.slug) % 7 === 3) return [];
-    var close = dow === 6 ? b.satClose : b.close;
-    var ids =
-      staffId && staffId !== 'any'
-        ? [staffId]
-        : D.staff.map(function (x) {
-            return x.id;
-          });
-    var out = [];
-    for (var t = b.open; t + dur <= close; t += b.step) {
-      // Minimum notice: 2 hours from now, in the business's time zone.
-      if (diff === 0 && t < nowMinutes(b.tzId) + 120) continue;
-      var free = false;
-      for (var i = 0; i < ids.length; i++) {
-        if (this.hash(k + ':' + t + ':' + ids[i]) % 3 !== 0) {
-          free = true;
-          break;
-        }
-      }
-      if (free) out.push(t);
-    }
-    return out;
+    if (staffId && staffId !== 'any') return (av.staff[staffId] && av.staff[staffId][k]) || [];
+    var seen = {};
+    Object.keys(av.staff).forEach(function (id) {
+      (av.staff[id][k] || []).forEach(function (t) {
+        seen[t] = true;
+      });
+    });
+    return Object.keys(seen)
+      .map(Number)
+      .sort(function (x, y) {
+        return x - y;
+      });
   }
 
   nextLabel(D, id, dur, delta) {
@@ -216,342 +259,8 @@ class BookingPageLogic extends DCLogic {
         return 'Next: ' + day + ', ' + this.fmt(sl[0] + delta);
       }
     }
-    return 'Fully booked';
-  }
-
-  demos() {
-    return {
-      aesthetic: {
-        biz: {
-          name: 'Lumen Skin Studio',
-          initials: 'LS',
-          kind: 'Skin & laser clinic',
-          place: 'Poblacion, Makati City',
-          off: 8,
-          tzId: 'Asia/Manila',
-          cur: '₱',
-          closed: [0],
-          open: 540,
-          close: 1080,
-          satClose: 900,
-          step: 30,
-          slug: 'lumen-skin-studio',
-        },
-        svcNoun: 'service',
-        svcTitle: 'Select a service',
-        staffNoun: 'Professional',
-        staffTitle: 'Choose a professional',
-        anyName: 'Any professional',
-        anyRole: 'Most availability',
-        staffSub: 'Pick someone you know, or let the studio match you with whoever is free first.',
-        cats: [
-          ['all', 'All'],
-          ['pkg', 'Packages'],
-          ['consult', 'Consultations'],
-          ['facial', 'Facials'],
-          ['laser', 'Laser'],
-        ],
-        services: [
-          {
-            id: 'a1',
-            cat: 'consult',
-            name: 'Skin consultation',
-            dur: 30,
-            price: 0,
-            desc: 'Skin assessment and a personalised treatment plan with our doctor.',
-          },
-          {
-            id: 'a2',
-            cat: 'facial',
-            name: 'Hydrating signature facial',
-            dur: 60,
-            price: 2800,
-            desc: 'Deep cleanse, gentle exfoliation, extractions and a hydrating mask.',
-          },
-          {
-            id: 'a3',
-            cat: 'facial',
-            name: 'Acne clearing facial',
-            dur: 75,
-            price: 3200,
-            desc: 'Targeted extractions, blue LED and a calming mask.',
-          },
-          {
-            id: 'a4',
-            cat: 'laser',
-            name: 'Pico laser toning',
-            dur: 45,
-            price: 4500,
-            desc: 'Evens skin tone and fades pigmentation. Numbing cream included.',
-          },
-          {
-            id: 'a5',
-            cat: 'laser',
-            name: 'Laser hair removal — underarm',
-            dur: 30,
-            price: 1500,
-            desc: 'Diode laser, priced per session.',
-          },
-          {
-            id: 'a6',
-            cat: 'pkg',
-            pkg: true,
-            name: 'Glow reset package',
-            dur: 60,
-            meta: '60 min per session',
-            price: 7500,
-            badge: '3 sessions',
-            desc: 'Three signature facials. Book your first session now and the rest later.',
-            includes: ['3 × Hydrating signature facial', 'Take-home hydrating serum'],
-            addons: [
-              { id: 'x1', name: 'LED light therapy', price: 800 },
-              { id: 'x2', name: 'Neck & décolleté add-on', price: 600 },
-            ],
-          },
-        ],
-        staff: [
-          { id: 't1', name: 'Dr. Ana Reyes', role: 'Dermatologist', initials: 'AR', color: '#5B4BDB' },
-          { id: 't2', name: 'Mia Santos', role: 'Senior aesthetician', initials: 'MS', color: '#0F766E' },
-          { id: 't3', name: 'Jules Tan', role: 'Laser specialist', initials: 'JT', color: '#B45309' },
-        ],
-        questions: [
-          { id: 'q1', type: 'yesno', label: 'Is this your first visit with us?', req: true },
-          {
-            id: 'q2',
-            type: 'select',
-            label: 'What is your main skin concern?',
-            options: ['Acne', 'Pigmentation', 'Dryness', 'Fine lines', 'Something else'],
-            req: false,
-          },
-          {
-            id: 'q3',
-            type: 'long',
-            label: 'Any allergies, medications or recent treatments we should know about?',
-            req: false,
-          },
-        ],
-        policy: 'Free cancellation or rescheduling up to 24 hours before your appointment.',
-      },
-      dental: {
-        biz: {
-          name: 'Brightside Dental Care',
-          initials: 'BD',
-          kind: 'Family dental clinic',
-          place: 'IT Park, Cebu City',
-          off: 8,
-          tzId: 'Asia/Manila',
-          cur: '₱',
-          closed: [0],
-          open: 540,
-          close: 1080,
-          satClose: 720,
-          step: 30,
-          slug: 'brightside-dental',
-        },
-        svcNoun: 'treatment',
-        svcTitle: 'Select a treatment',
-        staffNoun: 'Dentist',
-        staffTitle: 'Choose a dentist',
-        anyName: 'Any available dentist',
-        anyRole: 'Earliest appointment',
-        staffSub: 'Returning patients can keep their usual dentist. New patients can take the earliest slot.',
-        cats: [
-          ['all', 'All'],
-          ['pkg', 'Packages'],
-          ['general', 'General'],
-          ['cosmetic', 'Cosmetic'],
-          ['kids', 'Kids'],
-        ],
-        services: [
-          {
-            id: 'd1',
-            cat: 'general',
-            name: 'Check-up & cleaning',
-            dur: 45,
-            price: 1200,
-            desc: 'Exam, scaling and polishing. X-rays quoted separately if needed.',
-          },
-          {
-            id: 'd2',
-            cat: 'general',
-            name: 'Tooth-colored filling',
-            dur: 60,
-            price: 1800,
-            from: true,
-            desc: 'Composite filling, priced per surface.',
-          },
-          {
-            id: 'd3',
-            cat: 'general',
-            name: 'Emergency visit',
-            dur: 30,
-            price: 800,
-            desc: 'For pain, swelling or a broken tooth.',
-          },
-          {
-            id: 'd4',
-            cat: 'cosmetic',
-            name: 'In-clinic teeth whitening',
-            dur: 90,
-            price: 9500,
-            desc: 'One-visit whitening with a shade check before and after.',
-          },
-          {
-            id: 'd5',
-            cat: 'kids',
-            name: "Kids' first visit",
-            dur: 30,
-            price: 800,
-            desc: 'A gentle introduction to the dentist for ages 2 to 6.',
-          },
-          {
-            id: 'd6',
-            cat: 'pkg',
-            pkg: true,
-            name: 'Braces starter package',
-            dur: 60,
-            meta: '60 min per visit',
-            price: 4500,
-            badge: '2 visits',
-            desc: 'Orthodontic consultation, records and a treatment plan.',
-            includes: ['Orthodontic consultation', 'Panoramic X-ray and photos', 'Treatment plan visit'],
-            addons: [
-              { id: 'y1', name: 'Digital 3D scan', price: 2500 },
-              { id: 'y2', name: 'Cleaning before records', price: 1200 },
-            ],
-          },
-        ],
-        staff: [
-          { id: 'u1', name: 'Dr. Paolo Cruz', role: 'General dentist', initials: 'PC', color: '#1D4ED8' },
-          { id: 'u2', name: 'Dr. Bea Lim', role: 'Orthodontist', initials: 'BL', color: '#7C3AED' },
-          { id: 'u3', name: 'Dr. Karla Uy', role: 'Pediatric dentist', initials: 'KU', color: '#0F766E' },
-        ],
-        questions: [
-          { id: 'q1', type: 'yesno', label: 'Are you a new patient?', req: true },
-          {
-            id: 'q2',
-            type: 'select',
-            label: 'How will you pay?',
-            options: ['Cash or card', 'HMO', 'Company account'],
-            req: true,
-          },
-          { id: 'q3', type: 'yesno', label: 'Are you in pain right now?', req: false },
-          { id: 'q4', type: 'short', label: 'HMO provider (if paying by HMO)', req: false },
-        ],
-        policy: 'Please give at least 12 hours notice if you need to cancel or reschedule.',
-      },
-      events: {
-        biz: {
-          name: 'Snapshot Booth Co.',
-          initials: 'SB',
-          kind: 'Photo booth rentals',
-          place: 'Serving Los Angeles & Orange County',
-          off: -8,
-          tzId: 'America/Los_Angeles',
-          cur: '$',
-          closed: [],
-          open: 600,
-          close: 1380,
-          satClose: 1380,
-          step: 60,
-          slug: 'snapshot-booth-co',
-        },
-        svcNoun: 'package',
-        svcTitle: 'Choose a package',
-        staffNoun: 'Booth',
-        staffTitle: 'Choose your booth',
-        anyName: 'Any available booth',
-        anyRole: 'Most dates open',
-        staffSub: 'Each booth has a different look. Pick one, or take whichever is free on your date.',
-        deposit: 0.3,
-        cats: [
-          ['all', 'All'],
-          ['pkg', 'Packages'],
-          ['booth', 'Booth rentals'],
-        ],
-        services: [
-          {
-            id: 'e1',
-            cat: 'booth',
-            name: '2-hour photo booth',
-            dur: 120,
-            price: 450,
-            desc: 'Unlimited 4×6 prints, digital gallery and an on-site attendant.',
-          },
-          {
-            id: 'e2',
-            cat: 'booth',
-            name: '3-hour photo booth',
-            dur: 180,
-            price: 650,
-            desc: 'Everything in 2 hours, plus a custom print template.',
-          },
-          {
-            id: 'e3',
-            cat: 'booth',
-            name: '3-hour 360 video booth',
-            dur: 180,
-            price: 850,
-            desc: 'Slow-motion 360 videos shared by text and QR code.',
-          },
-          {
-            id: 'e4',
-            cat: 'pkg',
-            pkg: true,
-            name: 'Wedding all-inclusive',
-            dur: 300,
-            price: 1450,
-            badge: '5 hours',
-            desc: 'Built for receptions: booth, guest book and setup on the day.',
-            includes: ['5 hours of booth time', 'Scrapbook guest book with attendant', 'Custom backdrop and props'],
-            addons: [
-              { id: 'z1', name: 'Extra hour', price: 150 },
-              { id: 'z2', name: 'Flower wall backdrop', price: 180 },
-              { id: 'z3', name: 'Second booth (360 video)', price: 600 },
-            ],
-          },
-          {
-            id: 'e5',
-            cat: 'pkg',
-            pkg: true,
-            name: 'Corporate brand activation',
-            dur: 240,
-            price: 1200,
-            badge: '4 hours',
-            desc: 'Branded prints, lead capture and a live slideshow.',
-            includes: ['4 hours of booth time', 'Branded print and screen overlays', 'Email and survey lead capture'],
-            addons: [
-              { id: 'z4', name: 'Extra hour', price: 175 },
-              { id: 'z5', name: 'Post-event analytics report', price: 90 },
-            ],
-          },
-        ],
-        staff: [
-          { id: 'b1', name: 'Classic white booth', role: 'Open-air, fits 8 people', initials: 'CW', color: '#334155' },
-          { id: 'b2', name: 'Mirror booth', role: 'Full-length touch screen', initials: 'MB', color: '#0E7490' },
-          {
-            id: 'b3',
-            name: 'Rose gold booth',
-            role: 'Enclosed, popular for weddings',
-            initials: 'RG',
-            color: '#B4235A',
-          },
-        ],
-        questions: [
-          {
-            id: 'q1',
-            type: 'select',
-            label: 'What kind of event is it?',
-            options: ['Wedding', 'Birthday', 'Corporate', 'School or prom', 'Something else'],
-            req: true,
-          },
-          { id: 'q2', type: 'short', label: 'Venue name and address', req: true },
-          { id: 'q3', type: 'short', label: 'Estimated number of guests', req: false },
-          { id: 'q4', type: 'yesno', label: 'Is the booth location indoors?', req: false },
-        ],
-        policy: 'A 30% deposit secures your date and is refundable up to 14 days before the event.',
-      },
-    };
+    var av = this.state.avail[this.state.serviceId];
+    return av && av.status === 'loading' ? 'Checking availability…' : 'Fully booked';
   }
 
   renderVals() {
@@ -579,10 +288,9 @@ class BookingPageLogic extends DCLogic {
       'December',
     ];
 
-    var demoProp = String(p.demo || 'Aesthetic clinic');
-    var dk = demoProp.indexOf('Dental') === 0 ? 'dental' : demoProp.indexOf('Photo') === 0 ? 'events' : 'aesthetic';
-    var D = this.demos()[dk];
-    var b = D.biz;
+    var D = p.data;
+    var b = Object.assign({}, D.biz, { off: offsetHours(D.biz.tzId) || 0 });
+    var showPrices = D.settings.prices !== false;
     var T = todayParts(b.tzId);
     var todayKey = this.dkey(new Date(T.y, T.m, T.d));
 
@@ -599,7 +307,7 @@ class BookingPageLogic extends DCLogic {
         return x.id === s.serviceId;
       })[0] || null;
     var dur = svc ? svc.dur : 60;
-    var TZ = this.tzs();
+    var TZ = this.tzs(b.tzId);
     var tzId = s.tz || b.tzId;
     var tz =
       TZ.filter(function (z) {
@@ -607,7 +315,10 @@ class BookingPageLogic extends DCLogic {
       })[0] || TZ[0];
     var delta = (tz.off - b.off) * 60;
     var gmt = function (o) {
-      return 'GMT' + (o >= 0 ? '+' : '-') + Math.abs(o);
+      var a = Math.abs(o),
+        h = Math.floor(a),
+        m = Math.round((a - h) * 60);
+      return 'GMT' + (o >= 0 ? '+' : '-') + h + (m ? ':' + (m < 10 ? '0' : '') + m : '');
     };
     var staffKey = s.staffId || 'any';
 
@@ -678,8 +389,11 @@ class BookingPageLogic extends DCLogic {
       });
 
     // ---------- step 2: staff / resources
+    var eligible = D.staff.filter(function (x) {
+      return !svc || !svc.staffIds || !svc.staffIds.length || svc.staffIds.indexOf(x.id) >= 0;
+    });
     var staffAll = [{ id: 'any', any: true, name: D.anyName, role: D.anyRole, initials: '', color: accent }].concat(
-      D.staff,
+      eligible,
     );
     var staffList = staffAll.map(function (st) {
       var on = s.staffId === st.id;
@@ -796,7 +510,7 @@ class BookingPageLogic extends DCLogic {
         fg: on ? onAccent : INK,
         border: on ? accent : LINE2,
         pick: function () {
-          self.setState({ time: t, date: selKey });
+          self.setState({ time: t, date: selKey, submitErr: '' });
         },
       });
     });
@@ -858,7 +572,13 @@ class BookingPageLogic extends DCLogic {
         return { name: a.name, price: self.money(b.cur, a.price) };
       }),
       hasStaff: !!staffSel,
-      staffLine: staffSel ? (staffSel.any ? D.anyName : 'With ' + staffSel.name) : '',
+      staffLine: s.booking
+        ? 'With ' + s.booking.staffName
+        : staffSel
+          ? staffSel.any
+            ? D.anyName
+            : 'With ' + staffSel.name
+          : '',
       staffInitials: staffSel ? (staffSel.any ? 'ANY' : staffSel.initials) : '',
       staffAvBg: staffSel ? (staffSel.any ? soft : staffSel.color) : '#FFFFFF',
       staffAvFg: staffSel && staffSel.any ? accent : '#FFFFFF',
@@ -880,7 +600,8 @@ class BookingPageLogic extends DCLogic {
 
     // ---------- step 4: questions + validation
     var ans = s.answers || {};
-    var qList = D.questions.map(function (q) {
+    var questions = svc ? svc.questions || [] : [];
+    var qList = questions.map(function (q) {
       var v = ans[q.id] || '';
       var set = function (val) {
         var a = Object.assign({}, self.state.answers);
@@ -916,11 +637,11 @@ class BookingPageLogic extends DCLogic {
         }),
       };
     });
-    var reqOk = D.questions.every(function (q) {
+    var reqOk = questions.every(function (q) {
       return !q.req || String(ans[q.id] || '').trim();
     });
     var formOk = !!(s.first.trim() && /.+@.+\..+/.test(s.email) && s.agree && reqOk);
-    var can = [false, !!svc, !!staffSel, hasWhen, formOk, false][s.step] || false;
+    var can = [false, !!svc, !!staffSel, hasWhen, formOk && !s.submitting, false][s.step] || false;
     var hints = [
       '',
       'Choose a ' + D.svcNoun + ' to continue.',
@@ -965,32 +686,37 @@ class BookingPageLogic extends DCLogic {
       };
     });
 
-    var refNum = (this.hash(String(s.serviceId) + String(s.date) + String(s.time) + s.email) % 900000) + 100000;
+    var bk = s.booking;
     var confRows = [
       [
         D.svcNoun.charAt(0).toUpperCase() + D.svcNoun.slice(1),
         svc ? svc.name + (addSel.length ? ' + ' + addSel.length + ' add-on' + (addSel.length > 1 ? 's' : '') : '') : '',
       ],
-      [D.staffNoun, staffSel ? staffSel.name : ''],
+      [D.staffNoun, bk ? bk.staffName : staffSel ? staffSel.name : ''],
       ['When', whenDate + '\n' + whenTime],
       ['Where', b.place],
       ['Total', totalLabel],
-    ].map(function (r, ri, arr) {
-      return { k: r[0], v: r[1], line: ri < arr.length - 1 ? '#EEEFF2' : 'transparent' };
-    });
+    ]
+      .filter(function (r) {
+        return r[1];
+      })
+      .map(function (r, ri, arr) {
+        return { k: r[0], v: r[1], line: ri < arr.length - 1 ? '#EEEFF2' : 'transparent' };
+      });
 
     var calLinks = { gcal: '#', ics: '#' };
-    if (hasWhen) {
-      var cd = this.pdate(s.date);
-      var startUtc = Date.UTC(cd.getFullYear(), cd.getMonth(), cd.getDate()) + (s.time - b.off * 60) * 60000;
+    if (bk) {
       var ev = {
         title: (svc ? svc.name : '') + ' · ' + b.name,
-        start: new Date(startUtc), end: new Date(startUtc + dur * 60000),
-        location: b.place, details: 'Booking reference BK-' + refNum + '. ' + D.policy,
-        uid: 'BK-' + refNum + '@' + b.slug
+        start: new Date(bk.start),
+        end: new Date(bk.end),
+        location: b.place,
+        details: 'Booking reference ' + bk.ref + '. ' + D.policy,
+        uid: bk.ref + '@dsm-booking',
       };
       calLinks = { gcal: googleCalendarUrl(ev), ics: icsDataUrl(ev) };
     }
+    var pendingConf = !!bk && bk.status === 'pending';
 
     var fieldSetter = function (key) {
       return function (e) {
@@ -1073,20 +799,33 @@ class BookingPageLogic extends DCLogic {
       },
       sum: sum,
       showCta: s.step < 5,
-      ctaLabel: s.step === 4 ? 'Confirm booking' : 'Continue',
+      ctaLabel: s.step === 4 ? (s.submitting ? 'Confirming…' : 'Confirm booking') : 'Continue',
       ctaDisabled: !can,
       ctaBg: can ? INK : '#E6E7EB',
       ctaFg: can ? '#FFFFFF' : '#6B7280',
       ctaCursor: can ? 'pointer' : 'not-allowed',
-      showHint: !can && s.step < 5,
-      ctaHint: hints[s.step] || '',
+      showHint: (!can || !!s.submitErr) && s.step < 5 && !s.submitting,
+      ctaHint: s.submitErr && (s.step === 3 || s.step === 4) ? s.submitErr : hints[s.step] || '',
       next: function () {
         if (!can) return;
-        var nx = s.step === 4 ? 5 : s.step + 1;
+        if (s.step === 4) return self.submit();
+        var nx = s.step + 1;
         if (nx === 2 && p.hideStaff) nx = 3; // &hide_staff=1 skips the staff step
         self.setState({ step: nx });
       },
-      conf: { email: s.email || 'your email', ref: 'BK-' + refNum, rows: confRows, gcalHref: calLinks.gcal, icsHref: calLinks.ics, icsName: 'BK-' + refNum + '.ics' },
+      conf: {
+        email: s.email || 'your email',
+        ref: bk ? bk.ref : '',
+        rows: confRows,
+        gcalHref: calLinks.gcal,
+        icsHref: calLinks.ics,
+        icsName: (bk ? bk.ref : 'booking') + '.ics',
+        title: pendingConf ? 'Request sent' : "You're booked",
+        sub: pendingConf
+          ? b.name + ' will confirm your booking by email. A copy of your request is on its way to '
+          : 'A confirmation is on its way to ',
+        status: pendingConf ? 'Awaiting confirmation' : 'Confirmed',
+      },
       reset: function () {
         self.setState({
           step: 1,
@@ -2693,10 +2432,10 @@ export default class BookingPage extends BookingPageLogic {
                         letterSpacing: '-0.02em',
                       }}
                     >
-                      You're booked
+                      {v.conf?.title}
                     </h2>
                     <p style={{ margin: '0', fontSize: '15px', lineHeight: '22px', color: '#4A505C' }}>
-                      {'A confirmation is on its way to '}
+                      {v.conf?.sub}
                       {v.conf?.email}.
                     </p>
                     <span
@@ -2768,8 +2507,8 @@ export default class BookingPage extends BookingPageLogic {
                   >
                     <a
                       href={v.conf?.gcalHref}
- target="_blank"
- rel="noopener noreferrer"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       style={{
                         flex: '1 1 200px',
                         height: '48px',
@@ -2804,7 +2543,7 @@ export default class BookingPage extends BookingPageLogic {
                     </a>
                     <a
                       href={v.conf?.icsHref}
- download={v.conf?.icsName}
+                      download={v.conf?.icsName}
                       style={{
                         flex: '1 1 200px',
                         height: '48px',
@@ -2837,14 +2576,13 @@ export default class BookingPage extends BookingPageLogic {
                       {' Apple / Outlook (.ics)'}
                     </a>
                   </div>
-                  <div style={{ display: 'flex', gap: '24px', fontSize: '14px', lineHeight: '20px' }}>
-                    <a href="#" style={{ color: '#2B2F36', fontWeight: '600' }}>
-                      Reschedule
-                    </a>
-                    <a href="#" style={{ color: '#A12A20', fontWeight: '600' }}>
-                      Cancel booking
-                    </a>
-                  </div>
+                  {/* Customer self-service rescheduling is an open decision in the handoff;
+                      until then, replies to the confirmation email reach the business. */}
+                  <p
+                    style={{ margin: '0', fontSize: '14px', lineHeight: '20px', color: '#4A505C', textAlign: 'center' }}
+                  >
+                    Need to reschedule or cancel? Reply to your confirmation email.
+                  </p>
                   <button
                     type="button"
                     onClick={v.reset}
@@ -3107,8 +2845,8 @@ export default class BookingPage extends BookingPageLogic {
                           gap: '6px',
                           fontSize: '13px',
                           fontWeight: '700',
-                          color: '#0B6B45',
-                          background: '#E7F6EE',
+                          color: v.conf?.status === 'Confirmed' ? '#0B6B45' : '#8A4A06',
+                          background: v.conf?.status === 'Confirmed' ? '#E7F6EE' : '#FEF3E2',
                           borderRadius: '999px',
                           padding: '6px 12px',
                         }}
@@ -3126,7 +2864,7 @@ export default class BookingPage extends BookingPageLogic {
                         >
                           <path d="M5 12.5l4.5 4.5L19 7.5" />
                         </svg>
-                        {' Confirmed'}
+                        {' ' + (v.conf?.status || 'Confirmed')}
                       </span>
                     </>
                   ) : null}

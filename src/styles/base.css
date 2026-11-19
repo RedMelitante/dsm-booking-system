@@ -55,3 +55,9 @@ section[id] {
 button:disabled {
   cursor: not-allowed;
 }
+
+@keyframes dsm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

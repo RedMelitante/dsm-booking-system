@@ -2,6 +2,7 @@
 // Markup, inline styles and copy are kept as designed; the logic class is the board's own.
 import React from 'react';
 import { DCLogic } from '../lib/dc.js';
+import { HOST, ORIGIN } from '../lib/site.js';
 
 class HomePageLogic extends DCLogic {
   constructor(...args) {
@@ -367,7 +368,7 @@ class HomePageLogic extends DCLogic {
         self.setState({ copied: true });
         try {
           navigator.clipboard.writeText(
-            '<iframe src="https://[domain]/your-business?embed=true" title="Book an appointment" loading="lazy" style="width:100%;min-height:720px;border:0"></iframe>',
+            '<iframe src="' + ORIGIN + '/your-business?embed=true" title="Book an appointment" loading="lazy" style="width:100%;min-height:720px;border:0"></iframe>',
           );
         } catch (e) {}
       },
@@ -777,7 +778,7 @@ export default class HomePage extends HomePageLogic {
               </h1>
               <p style={{ margin: '0', fontSize: v.leadSize, lineHeight: '1.55', color: '#4A505C', maxWidth: '560px' }}>
                 Customers pick a service, a staff member and a time in a few taps. You get your own page at
-                [domain]/your-business, a one-line embed for any website, two-way Google Calendar sync and instant email
+                {HOST}/your-business, a one-line embed for any website, two-way Google Calendar sync and instant email
                 alerts.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', maxWidth: '640px' }}>
@@ -799,7 +800,7 @@ export default class HomePage extends HomePageLogic {
                     htmlFor="hero-slug"
                     style={{ paddingLeft: '14px', color: '#5B616E', fontSize: '14px', whiteSpace: 'nowrap' }}
                   >
-                    [domain]/
+                    {HOST}/
                   </label>
                   <input
                     id="hero-slug"
@@ -822,7 +823,7 @@ export default class HomePage extends HomePageLogic {
                   />
                 </div>
                 <a
-                  href="/signup"
+                  href={v.slug ? '/signup?slug=' + encodeURIComponent(v.slug) : '/signup'}
                   style={{
                     flex: '1 0 auto',
                     height: '52px',
@@ -994,7 +995,7 @@ export default class HomePage extends HomePageLogic {
                         textOverflow: 'ellipsis',
                       }}
                     >
-                      [domain]/lumen-skin-studio
+                      {HOST}/lumen-skin-studio
                     </span>
                   </span>
                 </div>{' '}
@@ -1785,7 +1786,7 @@ export default class HomePage extends HomePageLogic {
                       <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
                     </svg>
                     <span style={{ overflowWrap: 'anywhere' }}>
-                      [domain]/
+                      {HOST}/
                       <span style={{ color: v.accent }}>your-business</span>
                     </span>
                   </span>
@@ -1803,7 +1804,7 @@ export default class HomePage extends HomePageLogic {
                       wordBreak: 'break-all',
                     }}
                   >
-                    {'<iframe src="https://[domain]/your-business?embed=true"></iframe>'}
+                    {'<iframe src="' + ORIGIN + '/your-business?embed=true"></iframe>'}
                   </code>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -2561,7 +2562,7 @@ export default class HomePage extends HomePageLogic {
                     wordBreak: 'break-all',
                   }}
                 >
-                  {'<iframe src="https://[domain]/'}
+                  {'<iframe src="' + ORIGIN + '/'}
                   <span style={{ color: '#B9B2F5' }}>{'your-business'}</span>
                   {
                     '?embed=true"\n  title="Book an appointment" loading="lazy"\n  style="width:100%;min-height:720px;border:0"></iframe>'

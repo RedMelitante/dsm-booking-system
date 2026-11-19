@@ -2,14 +2,19 @@
   "name": "dsm-booking-system",
   "private": true,
   "version": "0.1.0",
-  "description": "Digital Services Master — multi-industry booking pages and website scheduler, built for Cloudflare Workers.",
+  "description": "Digital Services Master \u2014 multi-industry booking pages and website scheduler, built for Cloudflare Workers.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "cf:dev": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "test": "node --test test/*.test.js",
+    "db:migrate:local": "wrangler d1 migrations apply dsm-booking --local",
+    "db:migrate:remote": "wrangler d1 migrations apply dsm-booking --remote",
+    "db:seed:local": "node scripts/seed-demo.mjs > .wrangler/seed.sql && wrangler d1 execute dsm-booking --local --file=.wrangler/seed.sql",
+    "db:seed:remote": "node scripts/seed-demo.mjs > .wrangler/seed.sql && wrangler d1 execute dsm-booking --remote --file=.wrangler/seed.sql",
+    "cf:dev": "npm run build && npm run db:migrate:local && wrangler dev",
+    "deploy": "npm run build && npm run db:migrate:remote && wrangler deploy"
   },
   "dependencies": {
     "react": "18.3.1",
