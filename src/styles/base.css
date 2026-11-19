@@ -1,0 +1,57 @@
+/* Base styles. Page markup carries its own inline styles from the design
+   handoff; this file only sets document defaults and the per-page link colours
+   the canvas boards declared globally. */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body[data-page='home'],
+body[data-page='signup'],
+body[data-page='login'],
+body[data-page='setup'],
+body[data-page='booking'],
+body[data-page='not-found'] {
+  background: var(--canvas);
+}
+
+/* Dashboard board: a{color:#3F33B8}a:hover{color:#2B2290} */
+body[data-page='dashboard'] a {
+  color: #3f33b8;
+}
+body[data-page='dashboard'] a:hover {
+  color: #2b2290;
+}
+
+/* Embed demo board (example host site): a{color:#3A3A3A}a:hover{color:#111111} */
+body[data-page='embed-demo'] a {
+  color: #3a3a3a;
+}
+body[data-page='embed-demo'] a:hover {
+  color: #111111;
+}
+
+/* Anchor targets clear the 68px sticky marketing nav. */
+section[id] {
+  scroll-margin-top: 76px;
+}
+
+/* Visible keyboard focus everywhere (design: "visible focus rings"). */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}

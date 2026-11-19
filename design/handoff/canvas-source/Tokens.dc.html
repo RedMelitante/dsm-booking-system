@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Design tokens and components</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1200px; height: 1000px; box-sizing: border-box; padding: 44px 48px; background: #FFFFFF; color: #0F1115; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px; display: flex; flex-direction: column; gap: 28px; overflow: hidden">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px">
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 30px; line-height: 36px; font-weight: 800; letter-spacing: -0.02em">Design tokens &amp; components</h1>
+      <p style="margin: 0; font-size: 14px; color: #5B616E">Neutral app shell, one accent per business. Mobile-first, 4 px spacing grid, 44 px minimum touch targets.</p>
+    </div>
+    <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #4A505C; background: #F1F1F4; border-radius: 8px; padding: 6px 10px">tokens v0.1</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; flex: 1 1 auto; min-height: 0">
+
+    <!-- LEFT -->
+    <div style="display: flex; flex-direction: column; gap: 28px; min-width: 0">
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="margin: 0; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5B616E">Colour</h2>
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 10px">
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #0F1115"></span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Ink · #0F1115</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Text, primary button</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #4A505C"></span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Body · #4A505C</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Descriptions</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #5B616E"></span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Muted · #5B616E</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Meta, captions (6:1)</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #D9DBE1"></span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Border · #D9DBE1</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Inputs, slots</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #E6E7EB"></span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Line · #E6E7EB</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Card borders</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #F1F1F4"></span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Subtle · #F1F1F4</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Chips, active nav</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #F7F7F8; border: 1px solid #E6E7EB; box-sizing: border-box"></span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Canvas · #F7F7F8</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Page background</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E6E7EB; box-sizing: border-box"></span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Surface · #FFFFFF</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Cards, embed bg</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: {{accent}}"></span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Accent · {{accent}}</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Per business: selection</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: {{soft}}; border: 1px solid {{accent}}; box-sizing: border-box"></span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Accent soft · 9%</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Selected card fill</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #E7F6EE; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #0B6B45">#0B6B45</span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Success</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Confirmed, next slot</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #FEF3E2; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #8A4A06">#8A4A06</span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Warning</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Pending approval</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #FDECEA; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #A12A20">#A12A20</span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Danger</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Cancel, no-show</span></div>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="height: 44px; border-radius: 10px; background: #FEF6E7; border: 1px solid #F6E2B8; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #2B2F36">Notice</span><span style="font-size: 12px; line-height: 16px; font-weight: 700">Info · #FEF6E7</span><span style="font-size: 11px; line-height: 14px; color: #5B616E">Time zone notes</span></div>
+        </div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="margin: 0; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5B616E">Type · Plus Jakarta Sans + Inter</h2>
+        <div style="display: flex; flex-direction: column; border: 1px solid #E6E7EB; border-radius: 14px; padding: 4px 16px">
+          <div style="display: flex; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid #EEEFF2"><span style="width: 120px; flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5B616E">Display 28/34 · 800</span><span style="font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 28px; line-height: 34px; font-weight: 800; letter-spacing: -0.02em">You're booked</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid #EEEFF2"><span style="width: 120px; flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5B616E">H1 26/32 · 800</span><span style="font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 26px; line-height: 32px; font-weight: 800; letter-spacing: -0.015em">Select a service</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid #EEEFF2"><span style="width: 120px; flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5B616E">H2 20/26 · 800</span><span style="font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 20px; line-height: 26px; font-weight: 800">Lumen Skin Studio</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid #EEEFF2"><span style="width: 120px; flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5B616E">Title 15/20 · 700</span><span style="font-size: 15px; line-height: 20px; font-weight: 700">Thursday, 19 November</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid #EEEFF2"><span style="width: 120px; flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5B616E">Body 15/22 · 400</span><span style="font-size: 15px; line-height: 22px; color: #4A505C">Deep cleanse, gentle exfoliation and a hydrating mask.</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid #EEEFF2"><span style="width: 120px; flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5B616E">Small 13/18 · 500</span><span style="font-size: 13px; line-height: 18px; font-weight: 500; color: #5B616E">60 min · Next: Today, 2:00 PM</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px; padding: 10px 0"><span style="width: 120px; flex: 0 0 auto; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5B616E">Label 12/16 · 700</span><span style="font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5B616E">Morning · Step 2 of 4</span></div>
+        </div>
+        <span style="font-size: 12px; line-height: 16px; color: #5B616E">Inputs are 16 px on mobile so iOS does not zoom. Prices and times use tabular figures.</span>
+      </section>
+    </div>
+
+    <!-- RIGHT -->
+    <div style="display: flex; flex-direction: column; gap: 28px; min-width: 0">
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="margin: 0; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5B616E">Spacing, radius, elevation</h2>
+        <div style="display: flex; align-items: flex-end; gap: 14px">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 4px; height: 4px; background: {{accent}}; border-radius: 1px"></span><span style="font-size: 11px; color: #5B616E">4</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 8px; height: 8px; background: {{accent}}; border-radius: 2px"></span><span style="font-size: 11px; color: #5B616E">8</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 12px; height: 12px; background: {{accent}}; border-radius: 2px"></span><span style="font-size: 11px; color: #5B616E">12</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 16px; height: 16px; background: {{accent}}; border-radius: 3px"></span><span style="font-size: 11px; color: #5B616E">16</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 20px; height: 20px; background: {{accent}}; border-radius: 3px"></span><span style="font-size: 11px; color: #5B616E">20</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 24px; height: 24px; background: {{accent}}; border-radius: 4px"></span><span style="font-size: 11px; color: #5B616E">24</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 32px; height: 32px; background: {{accent}}; border-radius: 4px"></span><span style="font-size: 11px; color: #5B616E">32</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 48px; height: 48px; background: {{accent}}; border-radius: 6px"></span><span style="font-size: 11px; color: #5B616E">48</span></div>
+          <span style="width: 1px; height: 48px; background: #E6E7EB; margin: 0 6px"></span>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 44px; height: 44px; border: 2px solid #0F1115; border-radius: 10px; box-sizing: border-box"></span><span style="font-size: 11px; color: #5B616E">r10</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 44px; height: 44px; border: 2px solid #0F1115; border-radius: 14px; box-sizing: border-box"></span><span style="font-size: 11px; color: #5B616E">r14</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 44px; height: 44px; border: 2px solid #0F1115; border-radius: 16px; box-sizing: border-box; box-shadow: 0 1px 2px rgba(16,17,21,0.04), 0 8px 24px rgba(16,17,21,0.10)"></span><span style="font-size: 11px; color: #5B616E">r16 + lift</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><span style="width: 64px; height: 44px; border: 2px solid #0F1115; border-radius: 999px; box-sizing: border-box"></span><span style="font-size: 11px; color: #5B616E">pill</span></div>
+        </div>
+        <span style="font-size: 12px; line-height: 16px; color: #5B616E">Inputs and buttons r10 · time slots r10 · day cells r12 · service cards r14 · panels r16 · chips and status pills full round. Shadow only on the floating summary, popovers and drawer.</span>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 16px">
+        <h2 style="margin: 0; font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #5B616E">Components &amp; states</h2>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+          <button type="button" style="height: 48px; padding: 0 22px; border-radius: 12px; border: 0; background: #0F1115; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700">Continue</button>
+          <button type="button" disabled="{{ true }}" style="height: 48px; padding: 0 22px; border-radius: 12px; border: 0; background: #E6E7EB; color: #6B7280; font-family: inherit; font-size: 15px; font-weight: 700">Continue</button>
+          <button type="button" style="height: 48px; padding: 0 18px; border-radius: 12px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; font-family: inherit; font-size: 14px; font-weight: 600">Add to Google Calendar</button>
+          <button type="button" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 0; background: transparent; color: #A12A20; font-family: inherit; font-size: 14px; font-weight: 600">Cancel booking</button>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+          <button type="button" aria-pressed="true" style="height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid #0F1115; background: #0F1115; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600">All</button>
+          <button type="button" aria-pressed="false" style="height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; font-family: inherit; font-size: 14px; font-weight: 600">Facials</button>
+          <span style="width: 1px; height: 28px; background: #E6E7EB; margin: 0 4px"></span>
+          <button type="button" style="height: 44px; width: 96px; border-radius: 10px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; font-family: inherit; font-size: 14px; font-weight: 600">9:30 AM</button>
+          <button type="button" aria-pressed="true" style="height: 44px; width: 96px; border-radius: 10px; border: 1px solid {{accent}}; background: {{accent}}; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600">10:00 AM</button>
+          <button type="button" style="height: 44px; width: 96px; border-radius: 10px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; font-family: inherit; font-size: 14px; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 14px">1:00 AM<span style="font-size: 10px; line-height: 12px">next day</span></button>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center">
+          <div style="display: flex; gap: 4px; align-items: center">
+            <button type="button" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid transparent; background: transparent; color: #0F1115; font-family: inherit; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0"><span style="font-size: 14px; line-height: 16px">18</span><span style="width: 4px; height: 4px; border-radius: 999px; background: {{accent}}"></span></button>
+            <button type="button" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid #D9DBE1; background: transparent; color: #0F1115; font-family: inherit; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0"><span style="font-size: 14px; line-height: 16px">19</span><span style="width: 4px; height: 4px; border-radius: 999px; background: {{accent}}"></span></button>
+            <button type="button" aria-pressed="true" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid transparent; background: {{accent}}; color: #FFFFFF; font-family: inherit; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0"><span style="font-size: 14px; line-height: 16px">20</span><span style="width: 4px; height: 4px; border-radius: 999px; background: #FFFFFF"></span></button>
+            <button type="button" disabled="{{ true }}" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid transparent; background: transparent; color: #A9AEB8; font-family: inherit; font-weight: 400; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0"><span style="font-size: 14px; line-height: 16px">21</span><span style="width: 4px; height: 4px"></span></button>
+          </div>
+          <span style="font-size: 12px; line-height: 16px; color: #5B616E; max-width: 200px">Day cells: available (dot), today (ring), selected, unavailable. Taken time slots are hidden, never shown greyed.</span>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+          <span style="font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #E7F6EE; color: #0B6B45">Confirmed</span>
+          <span style="font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #FEF3E2; color: #8A4A06">Pending</span>
+          <span style="font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #EEEFF2; color: #3F4450">Completed</span>
+          <span style="font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #FDECEA; color: #A12A20">Cancelled</span>
+          <span style="width: 1px; height: 24px; background: #E6E7EB; margin: 0 4px"></span>
+          <button type="button" role="switch" aria-checked="true" aria-label="Switch on" style="width: 44px; height: 26px; border-radius: 999px; border: 0; padding: 3px; background: #5B4BDB; display: flex; align-items: center; box-sizing: border-box"><span style="width: 20px; height: 20px; border-radius: 999px; background: #FFFFFF; transform: translateX(18px)"></span></button>
+          <button type="button" role="switch" aria-checked="false" aria-label="Switch off" style="width: 44px; height: 26px; border-radius: 999px; border: 0; padding: 3px; background: #8C929C; display: flex; align-items: center; box-sizing: border-box"><span style="width: 20px; height: 20px; border-radius: 999px; background: #FFFFFF"></span></button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36">
+            <span>Email <span style="color: #C2362B">*</span></span>
+            <input type="email" value="maria@example.com" readonly style="height: 48px; border: 1px solid #D9DBE1; border-radius: 10px; padding: 0 14px; font-family: inherit; font-size: 16px; color: #0F1115; background: #FFFFFF; box-sizing: border-box; width: 100%">
+          </label>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <span style="font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36">First visit? <span style="color: #C2362B">*</span></span>
+            <div style="display: flex; gap: 8px">
+              <button type="button" aria-pressed="true" style="height: 48px; padding: 0 18px; border-radius: 999px; border: 1px solid {{accent}}; box-shadow: 0 0 0 1px {{accent}}; background: {{soft}}; color: #0F1115; font-family: inherit; font-size: 14px; font-weight: 700">Yes</button>
+              <button type="button" aria-pressed="false" style="height: 48px; padding: 0 18px; border-radius: 999px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; font-family: inherit; font-size: 14px; font-weight: 500">No</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 16px; border: 1px solid {{accent}}; box-shadow: 0 0 0 1px {{accent}}; background: {{soft}}; border-radius: 14px; padding: 14px 16px; align-items: flex-start">
+          <span style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 15px; font-weight: 600">Hydrating signature facial</span>
+            <span style="font-size: 13px; color: #5B616E">60 min</span>
+          </span>
+          <span style="font-size: 15px; font-weight: 700">₱2,800</span>
+          <span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 999px; background: {{accent}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","options":["#5B4BDB","#0F766E","#1D4ED8","#B4235A"],"default":"#5B4BDB","section":"Brand"},"$preview":{"width":1200,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var accent = this.props.accent ?? '#5B4BDB';
+    var h = String(accent).replace('#', '');
+    var n = parseInt(h, 16);
+    var rgb = (h.length === 6 && !isNaN(n)) ? [(n >> 16) & 255, (n >> 8) & 255, n & 255] : [91, 75, 219];
+    var m = function (v) { return Math.round(255 + (v - 255) * 0.09); };
+    return { accent: accent, soft: 'rgb(' + m(rgb[0]) + ', ' + m(rgb[1]) + ', ' + m(rgb[2]) + ')' };
+  }
+}
+</script>
+</body>
+</html>

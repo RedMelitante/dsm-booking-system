@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Public booking page</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div ref="{{rootRef}}" style="width: 100%; min-height: {{minH}}; display: flex; flex-direction: column; background: {{pageBg}}; color: #0F1115; font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; line-height: 22px; box-sizing: border-box">
+
+  <sc-if value="{{showHeader}}" hint-placeholder-val="{{ true }}">
+    <header style="background: #FFFFFF; border-bottom: 1px solid #E6E7EB">
+      <div style="max-width: 1160px; margin: 0 auto; padding: 16px 32px; box-sizing: border-box; display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+        <span style="width: 48px; height: 48px; border-radius: 12px; background: {{accent}}; color: {{onAccent}}; display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-weight: 800; font-size: 17px; flex: 0 0 auto">{{biz.initials}}</span>
+        <div style="display: flex; flex-direction: column; gap: 2px; flex: 1 1 240px; min-width: 0">
+          <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 20px; line-height: 26px; font-weight: 800; letter-spacing: -0.01em">{{biz.name}}</h1>
+          <span style="font-size: 13px; line-height: 18px; color: #5B616E; display: flex; align-items: center; gap: 6px; flex-wrap: wrap">{{biz.kind}}<span aria-hidden="true" style="color: #A9AEB8">•</span><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"></path><circle cx="12" cy="9.5" r="2.5"></circle></svg>{{biz.place}}</span>
+        </div>
+        <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 18px; color: #4A505C; border: 1px solid #E6E7EB; border-radius: 999px; padding: 7px 12px; background: #FFFFFF; white-space: nowrap">
+          <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c2.5 2.8 3.8 5.8 3.8 9s-1.3 6.2-3.8 9c-2.5-2.8-3.8-5.8-3.8-9S9.5 5.8 12 3z"></path></svg>
+          {{tzShort}}
+        </span>
+      </div>
+    </header>
+  </sc-if>
+
+  <sc-if value="{{showPhoneHeader}}" hint-placeholder-val="{{ false }}">
+    <div style="padding: 14px 16px 4px; display: flex; align-items: center; gap: 12px">
+      <sc-if value="{{canBack}}" hint-placeholder-val="{{ false }}">
+        <button type="button" onClick="{{back}}" aria-label="Go back" style="width: 44px; height: 44px; flex: 0 0 auto; border-radius: 999px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg>
+        </button>
+      </sc-if>
+      <span style="width: 40px; height: 40px; border-radius: 10px; background: {{accent}}; color: {{onAccent}}; display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-weight: 800; font-size: 14px; flex: 0 0 auto">{{biz.initials}}</span>
+      <div style="display: flex; flex-direction: column; min-width: 0">
+        <span style="font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 16px; line-height: 20px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{biz.name}}</span>
+        <span style="font-size: 12px; line-height: 16px; color: #5B616E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{biz.place}}</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="flex: 1 0 auto; width: 100%; max-width: {{maxW}}; margin: 0 auto; padding: {{pad}}; box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start">
+    <main style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+
+      <sc-if value="{{showFull}}" hint-placeholder-val="{{ true }}">
+        <nav aria-label="Booking steps" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap">
+          <sc-if value="{{canBack}}" hint-placeholder-val="{{ false }}">
+            <button type="button" onClick="{{back}}" aria-label="Go back" style="width: 40px; height: 40px; border-radius: 999px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-right: 6px; padding: 0">
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg>
+            </button>
+          </sc-if>
+          <sc-for list="{{steps}}" as="sp" hint-placeholder-count="4">
+            <button type="button" onClick="{{sp.go}}" disabled="{{sp.locked}}" aria-current="{{sp.ariaCurrent}}" style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 6px; border-radius: 999px; border: 0; background: {{sp.pillBg}}; color: {{sp.labelColor}}; font-family: inherit; cursor: {{sp.cursor}}">
+              <span style="width: 28px; height: 28px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: {{sp.circleBg}}; color: {{sp.circleFg}}">
+                <sc-if value="{{sp.done}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></sc-if>
+                <sc-if value="{{sp.notDone}}" hint-placeholder-val="{{ true }}">{{sp.n}}</sc-if>
+              </span>
+              <span style="font-size: 14px; font-weight: 600">{{sp.label}}</span>
+            </button>
+            <sc-if value="{{sp.sep}}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="width: 16px; height: 1px; background: #D9DBE1"></span></sc-if>
+          </sc-for>
+        </nav>
+      </sc-if>
+
+      <sc-if value="{{showCompact}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: center; gap: 10px; min-height: 24px">
+            <sc-if value="{{showStepperBack}}" hint-placeholder-val="{{ false }}">
+              <button type="button" onClick="{{back}}" aria-label="Go back" style="width: 44px; height: 44px; border-radius: 999px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; flex: 0 0 auto">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg>
+              </button>
+            </sc-if>
+            <span style="font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5B616E">Step {{stepNum}} of 4 · {{stepShort}}</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px">
+            <sc-for list="{{steps}}" as="sp" hint-placeholder-count="4"><span style="height: 4px; border-radius: 999px; background: {{sp.bar}}"></span></sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{showTitle}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h2 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: {{h2Size}}; line-height: 1.25; font-weight: 800; letter-spacing: -0.015em">{{stepTitle}}</h2>
+          <p style="margin: 0; font-size: 14px; line-height: 20px; color: #5B616E">{{stepSub}}</p>
+        </div>
+      </sc-if>
+
+      <!-- STEP 1: service / package -->
+      <sc-if value="{{isStep1}}" hint-placeholder-val="{{ true }}">
+        <section aria-label="Services" style="display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px">
+            <sc-for list="{{cats}}" as="c" hint-placeholder-count="5">
+              <button type="button" onClick="{{c.pick}}" aria-pressed="{{c.on}}" style="flex: 0 0 auto; height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap">{{c.label}}</button>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 12px">
+            <sc-for list="{{svcList}}" as="sv" hint-placeholder-count="5">
+              <div style="border: 1px solid {{sv.border}}; box-shadow: 0 0 0 1px {{sv.ring}}; background: {{sv.bg}}; border-radius: 14px; overflow: hidden">
+                <button type="button" onClick="{{sv.pick}}" aria-pressed="{{sv.on}}" style="display: flex; width: 100%; gap: 16px; align-items: flex-start; padding: 16px 18px; background: transparent; border: 0; text-align: left; font-family: inherit; color: inherit; cursor: pointer; box-sizing: border-box">
+                  <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+                    <span style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap">
+                      <span style="font-size: 16px; line-height: 22px; font-weight: 600">{{sv.name}}</span>
+                      <sc-if value="{{sv.pkg}}" hint-placeholder-val="{{ false }}"><span style="font-size: 12px; line-height: 16px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #F1F1F4; color: #2B2F36">Package · {{sv.badge}}</span></sc-if>
+                    </span>
+                    <span style="font-size: 13px; line-height: 18px; color: #5B616E; display: flex; align-items: center; gap: 6px">
+                      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                      {{sv.durLabel}}
+                    </span>
+                    <span style="font-size: 14px; line-height: 20px; color: #4A505C">{{sv.desc}}</span>
+                    <sc-if value="{{sv.pkg}}" hint-placeholder-val="{{ false }}">
+                      <span style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px">
+                        <sc-for list="{{sv.includes}}" as="inc" hint-placeholder-count="2">
+                          <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 18px; color: #2B2F36">
+                            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E7A4F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+                            {{inc}}
+                          </span>
+                        </sc-for>
+                      </span>
+                    </sc-if>
+                  </span>
+                  <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex: 0 0 auto">
+                    <span style="font-size: 15px; line-height: 22px; font-weight: 700; white-space: nowrap">{{sv.priceLabel}}</span>
+                    <span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center; background: {{sv.iconBg}}; color: {{sv.iconFg}}; border: 1px solid {{sv.iconBorder}}; box-sizing: border-box">
+                      <sc-if value="{{sv.on}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></sc-if>
+                      <sc-if value="{{sv.off}}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg></sc-if>
+                    </span>
+                  </span>
+                </button>
+                <sc-if value="{{sv.showAddons}}" hint-placeholder-val="{{ false }}">
+                  <div style="border-top: 1px solid #E6E7EB; padding: 12px 18px 12px; display: flex; flex-direction: column; gap: 2px; background: #FFFFFF">
+                    <span style="font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5B616E; padding: 4px 0">Customize with add-ons</span>
+                    <sc-for list="{{sv.addonList}}" as="ad" hint-placeholder-count="2">
+                      <label style="display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer">
+                        <input type="checkbox" checked="{{ad.on}}" onChange="{{ad.toggle}}" style="width: 18px; height: 18px; margin: 0; accent-color: {{accent}}; flex: 0 0 auto">
+                        <span style="flex: 1 1 auto; font-size: 14px; line-height: 20px">{{ad.name}}</span>
+                        <span style="font-size: 14px; font-weight: 600; white-space: nowrap">+{{ad.price}}</span>
+                      </label>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </sc-if>
+
+      <!-- STEP 2: staff / resource -->
+      <sc-if value="{{isStep2}}" hint-placeholder-val="{{ false }}">
+        <section aria-label="Staff" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px">
+          <sc-for list="{{staffList}}" as="st" hint-placeholder-count="4">
+            <button type="button" onClick="{{st.pick}}" aria-pressed="{{st.on}}" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 20px 12px 16px; border-radius: 14px; border: 1px solid {{st.border}}; box-shadow: 0 0 0 1px {{st.ring}}; background: {{st.bg}}; font-family: inherit; color: inherit; cursor: pointer; min-height: 176px; box-sizing: border-box">
+              <span style="width: 56px; height: 56px; border-radius: 999px; background: {{st.avBg}}; color: {{st.avFg}}; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; flex: 0 0 auto">
+                <sc-if value="{{st.any}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.5"></circle><path d="M2.5 19.5c.9-3 3.4-4.8 6.5-4.8s5.6 1.8 6.5 4.8"></path><path d="M15.5 5.2a3.5 3.5 0 0 1 0 6.6M17.5 14.9c2 .6 3.4 2.2 4 4.6"></path></svg></sc-if>
+                <sc-if value="{{st.notAny}}" hint-placeholder-val="{{ true }}">{{st.initials}}</sc-if>
+              </span>
+              <span style="font-size: 15px; line-height: 20px; font-weight: 600">{{st.name}}</span>
+              <span style="font-size: 13px; line-height: 18px; color: #5B616E">{{st.role}}</span>
+              <span style="margin-top: auto; font-size: 12px; line-height: 16px; font-weight: 600; color: #0B6B45; background: #E7F6EE; border-radius: 999px; padding: 4px 10px">{{st.next}}</span>
+            </button>
+          </sc-for>
+        </section>
+      </sc-if>
+
+      <!-- STEP 3: calendar + time slots -->
+      <sc-if value="{{isStep3}}" hint-placeholder-val="{{ false }}">
+        <section aria-label="Date and time" style="display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center">
+            <label for="tz-select" style="font-size: 13px; font-weight: 600; color: #2B2F36">Time zone</label>
+            <span style="position: relative; display: flex; align-items: center; flex: 1 1 240px; max-width: 340px">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B616E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 12px; pointer-events: none"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c2.5 2.8 3.8 5.8 3.8 9s-1.3 6.2-3.8 9c-2.5-2.8-3.8-5.8-3.8-9S9.5 5.8 12 3z"></path></svg>
+              <select id="tz-select" value="{{tzValue}}" onChange="{{setTz}}" style="appearance: none; -webkit-appearance: none; width: 100%; height: 44px; padding: 0 36px 0 38px; border: 1px solid #D9DBE1; border-radius: 10px; background: #FFFFFF; font-family: inherit; font-size: 14px; color: #0F1115; cursor: pointer">
+                <option value="Asia/Manila">(GMT+8) Manila</option>
+                <option value="Asia/Singapore">(GMT+8) Singapore</option>
+                <option value="Australia/Perth">(GMT+8) Perth</option>
+                <option value="Australia/Brisbane">(GMT+10) Brisbane</option>
+                <option value="Australia/Sydney">(GMT+11) Sydney, Melbourne</option>
+                <option value="Asia/Dubai">(GMT+4) Dubai</option>
+                <option value="Europe/London">(GMT+0) London</option>
+                <option value="America/New_York">(GMT-5) New York</option>
+                <option value="America/Los_Angeles">(GMT-8) Los Angeles</option>
+              </select>
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B616E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; right: 12px; pointer-events: none"><path d="M6 9l6 6 6-6"></path></svg>
+            </span>
+          </div>
+          <sc-if value="{{tzDiffers}}" hint-placeholder-val="{{ false }}">
+            <p style="margin: 0; font-size: 13px; line-height: 18px; color: #2B2F36; background: #FEF6E7; border: 1px solid #F6E2B8; border-radius: 10px; padding: 10px 12px">{{tzNote}}</p>
+          </sc-if>
+          <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+            <div style="flex: 1 1 300px; min-width: 0; border: 1px solid #E6E7EB; border-radius: 16px; padding: 16px; background: #FFFFFF; box-sizing: border-box">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px">
+                <button type="button" onClick="{{cal.prev}}" disabled="{{cal.prevDisabled}}" aria-label="Previous month" style="width: 40px; height: 40px; border-radius: 999px; border: 1px solid #E6E7EB; background: #FFFFFF; color: {{cal.prevColor}}; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0">
+                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>
+                </button>
+                <span style="font-size: 15px; line-height: 20px; font-weight: 700">{{cal.title}}</span>
+                <button type="button" onClick="{{cal.next}}" disabled="{{cal.nextDisabled}}" aria-label="Next month" style="width: 40px; height: 40px; border-radius: 999px; border: 1px solid #E6E7EB; background: #FFFFFF; color: {{cal.nextColor}}; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0">
+                  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+                </button>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px">
+                <sc-for list="{{cal.wd}}" as="w" hint-placeholder-count="7"><span style="text-align: center; font-size: 12px; line-height: 16px; font-weight: 600; color: #6B7280; padding: 6px 0">{{w}}</span></sc-for>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px">
+                <sc-for list="{{cal.cells}}" as="c" hint-placeholder-count="35">
+                  <sc-if value="{{c.blank}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="height: 44px"></span></sc-if>
+                  <sc-if value="{{c.isDay}}" hint-placeholder-val="{{ true }}">
+                    <button type="button" onClick="{{c.pick}}" disabled="{{c.disabled}}" aria-pressed="{{c.selected}}" aria-label="{{c.aria}}" style="height: 44px; width: 100%; border-radius: 12px; border: 1px solid {{c.ring}}; background: {{c.bg}}; color: {{c.fg}}; font-family: inherit; font-weight: {{c.weight}}; cursor: {{c.cursor}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; box-sizing: border-box">
+                      <span style="font-size: 14px; line-height: 16px">{{c.d}}</span>
+                      <span aria-hidden="true" style="width: 4px; height: 4px; border-radius: 999px; background: {{c.dot}}"></span>
+                    </button>
+                  </sc-if>
+                </sc-for>
+              </div>
+              <div style="display: flex; gap: 16px; margin-top: 12px; font-size: 12px; line-height: 16px; color: #5B616E">
+                <span style="display: flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 6px; height: 6px; border-radius: 999px; background: {{accent}}"></span>Times available</span>
+                <span style="display: flex; align-items: center; gap: 6px"><span aria-hidden="true" style="width: 14px; height: 14px; border-radius: 4px; border: 1px solid #D9DBE1"></span>Today</span>
+              </div>
+            </div>
+            <div style="flex: 1 1 260px; min-width: 0; border: 1px solid #E6E7EB; border-radius: 16px; padding: 16px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box">
+              <div style="display: flex; flex-direction: column; gap: 2px">
+                <span style="font-size: 15px; line-height: 20px; font-weight: 700">{{slots.dateLabel}}</span>
+                <span style="font-size: 13px; line-height: 18px; color: #5B616E">{{slots.countLabel}}</span>
+              </div>
+              <sc-if value="{{slots.empty}}" hint-placeholder-val="{{ false }}">
+                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #4A505C; background: #F7F7F8; border-radius: 10px; padding: 14px">No times left on this day for this selection. Pick another highlighted date.</p>
+              </sc-if>
+              <sc-for list="{{slots.groups}}" as="g" hint-placeholder-count="2">
+                <div style="display: flex; flex-direction: column; gap: 8px">
+                  <span style="font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5B616E">{{g.label}}</span>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px">
+                    <sc-for list="{{g.items}}" as="sl" hint-placeholder-count="6">
+                      <button type="button" onClick="{{sl.pick}}" aria-pressed="{{sl.on}}" style="height: 44px; border-radius: 10px; border: 1px solid {{sl.border}}; background: {{sl.bg}}; color: {{sl.fg}}; font-family: inherit; font-size: 14px; line-height: 16px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 4px">
+                        {{sl.label}}
+                        <sc-if value="{{sl.shift}}" hint-placeholder-val="{{ false }}"><span style="font-size: 10px; line-height: 12px; font-weight: 600">{{sl.shiftLabel}}</span></sc-if>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+
+      <!-- STEP 4: customer info + custom questions -->
+      <sc-if value="{{isStep4}}" hint-placeholder-val="{{ false }}">
+        <section aria-label="Your details" style="display: flex; flex-direction: column; gap: 16px">
+          <div style="border: 1px solid #E6E7EB; border-radius: 16px; padding: 20px; background: #FFFFFF; display: flex; flex-direction: column; gap: 16px">
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36; min-width: 0">
+                <span>First name <span style="color: #C2362B">*</span></span>
+                <input type="text" value="{{first}}" onChange="{{setFirst}}" placeholder="Maria" style="height: 48px; border: 1px solid #D9DBE1; border-radius: 10px; padding: 0 14px; font-family: inherit; font-size: 16px; color: #0F1115; background: #FFFFFF; box-sizing: border-box; width: 100%; min-width: 0">
+              </label>
+              <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36; min-width: 0">
+                <span>Last name</span>
+                <input type="text" value="{{last}}" onChange="{{setLast}}" placeholder="Dela Cruz" style="height: 48px; border: 1px solid #D9DBE1; border-radius: 10px; padding: 0 14px; font-family: inherit; font-size: 16px; color: #0F1115; background: #FFFFFF; box-sizing: border-box; width: 100%; min-width: 0">
+              </label>
+            </div>
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36">
+              <span>Email <span style="color: #C2362B">*</span></span>
+              <input type="email" value="{{email}}" onChange="{{setEmail}}" placeholder="you@example.com" style="height: 48px; border: 1px solid #D9DBE1; border-radius: 10px; padding: 0 14px; font-family: inherit; font-size: 16px; color: #0F1115; background: #FFFFFF; box-sizing: border-box; width: 100%">
+            </label>
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <label for="phone-input" style="font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36">Mobile number</label>
+              <div style="display: flex; gap: 8px">
+                <select aria-label="Country code" value="{{cc}}" onChange="{{setCc}}" style="height: 48px; border: 1px solid #D9DBE1; border-radius: 10px; padding: 0 10px; font-family: inherit; font-size: 15px; color: #0F1115; background: #FFFFFF; flex: 0 0 96px">
+                  <option value="+63">PH +63</option>
+                  <option value="+61">AU +61</option>
+                  <option value="+1">US +1</option>
+                  <option value="+65">SG +65</option>
+                  <option value="+44">UK +44</option>
+                </select>
+                <input id="phone-input" type="tel" value="{{phone}}" onChange="{{setPhone}}" placeholder="917 000 0000" style="height: 48px; border: 1px solid #D9DBE1; border-radius: 10px; padding: 0 14px; font-family: inherit; font-size: 16px; color: #0F1115; background: #FFFFFF; box-sizing: border-box; flex: 1 1 auto; min-width: 0">
+              </div>
+            </div>
+          </div>
+
+          <div style="border: 1px solid #E6E7EB; border-radius: 16px; padding: 20px; background: #FFFFFF; display: flex; flex-direction: column; gap: 18px">
+            <div style="display: flex; flex-direction: column; gap: 2px">
+              <span style="font-size: 15px; line-height: 20px; font-weight: 700">Questions from {{biz.name}}</span>
+              <span style="font-size: 13px; line-height: 18px; color: #5B616E">Set by the business for this {{svcNoun}}.</span>
+            </div>
+            <sc-for list="{{qList}}" as="q" hint-placeholder-count="3">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <label for="{{q.fid}}" style="font-size: 14px; line-height: 20px; font-weight: 600; color: #0F1115">{{q.label}}<sc-if value="{{q.req}}" hint-placeholder-val="{{ false }}"><span style="color: #C2362B"> *</span></sc-if></label>
+                <sc-if value="{{q.isChoice}}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px">
+                    <sc-for list="{{q.choices}}" as="ch" hint-placeholder-count="3">
+                      <button type="button" id="{{ch.id}}" onClick="{{ch.pick}}" aria-pressed="{{ch.on}}" style="min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid {{ch.border}}; box-shadow: 0 0 0 1px {{ch.ring}}; background: {{ch.bg}}; color: #0F1115; font-family: inherit; font-size: 14px; font-weight: {{ch.weight}}; cursor: pointer">{{ch.label}}</button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{q.isShort}}" hint-placeholder-val="{{ false }}">
+                  <input id="{{q.fid}}" type="text" value="{{q.value}}" onChange="{{q.onInput}}" style="height: 48px; border: 1px solid #D9DBE1; border-radius: 10px; padding: 0 14px; font-family: inherit; font-size: 16px; color: #0F1115; background: #FFFFFF; box-sizing: border-box; width: 100%">
+                </sc-if>
+                <sc-if value="{{q.isLong}}" hint-placeholder-val="{{ false }}">
+                  <textarea id="{{q.fid}}" rows="3" value="{{q.value}}" onChange="{{q.onInput}}" style="border: 1px solid #D9DBE1; border-radius: 10px; padding: 12px 14px; font-family: inherit; font-size: 16px; line-height: 22px; color: #0F1115; background: #FFFFFF; box-sizing: border-box; width: 100%; resize: vertical"></textarea>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <label style="display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; cursor: pointer">
+              <input type="checkbox" checked="{{agree}}" onChange="{{toggleAgree}}" style="width: 18px; height: 18px; margin: 2px 0 0; accent-color: {{accent}}; flex: 0 0 auto">
+              <span style="font-size: 14px; line-height: 20px; color: #2B2F36">I agree to the booking policy: {{policy}} <span style="color: #C2362B">*</span></span>
+            </label>
+            <label style="display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; cursor: pointer">
+              <input type="checkbox" checked="{{sms}}" onChange="{{toggleSms}}" style="width: 18px; height: 18px; margin: 2px 0 0; accent-color: {{accent}}; flex: 0 0 auto">
+              <span style="font-size: 14px; line-height: 20px; color: #2B2F36">Text me a reminder the day before</span>
+            </label>
+          </div>
+        </section>
+      </sc-if>
+
+      <!-- STEP 5: confirmation -->
+      <sc-if value="{{isStep5}}" hint-placeholder-val="{{ false }}">
+        <section aria-label="Booking confirmed" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; padding: 24px 0 8px">
+          <span style="width: 64px; height: 64px; border-radius: 999px; background: #E7F6EE; color: #0E7A4F; display: flex; align-items: center; justify-content: center">
+            <svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+          </span>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <h2 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 28px; line-height: 34px; font-weight: 800; letter-spacing: -0.02em">You're booked</h2>
+            <p style="margin: 0; font-size: 15px; line-height: 22px; color: #4A505C">A confirmation is on its way to {{conf.email}}.</p>
+            <span style="align-self: center; font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36; background: #F1F1F4; border-radius: 999px; padding: 4px 12px">Reference {{conf.ref}}</span>
+          </div>
+          <div style="width: 100%; max-width: 520px; text-align: left; border: 1px solid #E6E7EB; border-radius: 16px; padding: 4px 20px; background: #FFFFFF; box-sizing: border-box">
+            <sc-for list="{{conf.rows}}" as="r" hint-placeholder-count="5">
+              <div style="display: flex; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid {{r.line}}">
+                <span style="font-size: 14px; line-height: 20px; color: #5B616E; flex: 0 0 auto">{{r.k}}</span>
+                <span style="font-size: 14px; line-height: 20px; font-weight: 600; text-align: right; white-space: pre-line">{{r.v}}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%; max-width: 520px">
+            <a href="#" style="flex: 1 1 200px; height: 48px; border-radius: 12px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 600">
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+              Add to Google Calendar
+            </a>
+            <a href="#" style="flex: 1 1 200px; height: 48px; border-radius: 12px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 600">
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"></path></svg>
+              Apple / Outlook (.ics)
+            </a>
+          </div>
+          <div style="display: flex; gap: 24px; font-size: 14px; line-height: 20px">
+            <a href="#" style="color: #2B2F36; font-weight: 600">Reschedule</a>
+            <a href="#" style="color: #A12A20; font-weight: 600">Cancel booking</a>
+          </div>
+          <button type="button" onClick="{{reset}}" style="height: 44px; padding: 0 18px; border-radius: 12px; border: 0; background: transparent; color: #4A505C; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: underline">Book another appointment</button>
+        </section>
+      </sc-if>
+    </main>
+
+    <!-- Summary sidebar (desktop / wide embed) -->
+    <sc-if value="{{showAside}}" hint-placeholder-val="{{ true }}">
+      <aside aria-label="Booking summary" style="flex: 1 1 300px; max-width: 380px; min-width: 0; position: sticky; top: 24px">
+        <div style="background: #FFFFFF; border: 1px solid #E6E7EB; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 1px 2px rgba(16,17,21,0.04), 0 8px 24px rgba(16,17,21,0.06)">
+          <div style="display: flex; gap: 12px; align-items: center">
+            <span style="width: 40px; height: 40px; border-radius: 10px; background: {{accent}}; color: {{onAccent}}; display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-weight: 800; font-size: 14px; flex: 0 0 auto">{{biz.initials}}</span>
+            <div style="display: flex; flex-direction: column; min-width: 0">
+              <span style="font-size: 15px; line-height: 20px; font-weight: 700">{{biz.name}}</span>
+              <span style="font-size: 12px; line-height: 16px; color: #5B616E">{{biz.place}}</span>
+            </div>
+          </div>
+          <div style="height: 1px; background: #EEEFF2"></div>
+          <sc-if value="{{sum.noService}}" hint-placeholder-val="{{ true }}">
+            <p style="margin: 0; font-size: 14px; line-height: 20px; color: #5B616E">Nothing selected yet. Pick a {{svcNoun}} to see your summary here.</p>
+          </sc-if>
+          <sc-if value="{{sum.hasService}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <div style="display: flex; justify-content: space-between; gap: 12px">
+                <div style="display: flex; flex-direction: column; min-width: 0">
+                  <span style="font-size: 15px; line-height: 20px; font-weight: 600">{{sum.svcName}}</span>
+                  <span style="font-size: 13px; line-height: 18px; color: #5B616E">{{sum.svcMeta}}</span>
+                </div>
+                <span style="font-size: 15px; line-height: 20px; font-weight: 600; white-space: nowrap">{{sum.svcPrice}}</span>
+              </div>
+              <sc-for list="{{sum.addons}}" as="a" hint-placeholder-count="1">
+                <div style="display: flex; justify-content: space-between; gap: 12px; font-size: 13px; line-height: 18px; color: #4A505C">
+                  <span>+ {{a.name}}</span><span style="white-space: nowrap">{{a.price}}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{sum.hasStaff}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; line-height: 20px">
+              <span style="width: 28px; height: 28px; border-radius: 999px; background: {{sum.staffAvBg}}; color: {{sum.staffAvFg}}; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex: 0 0 auto">{{sum.staffInitials}}</span>
+              <span>{{sum.staffLine}}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{sum.hasWhen}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: flex-start; gap: 10px">
+              <span style="width: 28px; height: 28px; border-radius: 999px; background: #F1F1F4; color: #2B2F36; display: flex; align-items: center; justify-content: center; flex: 0 0 auto">
+                <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+              </span>
+              <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+                <span style="font-size: 14px; line-height: 20px; font-weight: 600">{{sum.whenDate}}</span>
+                <span style="font-size: 13px; line-height: 18px; color: #4A505C">{{sum.whenTime}}</span>
+                <sc-if value="{{sum.hasClinicTime}}" hint-placeholder-val="{{ false }}"><span style="font-size: 12px; line-height: 16px; color: #5B616E">{{sum.clinicTime}}</span></sc-if>
+              </div>
+            </div>
+          </sc-if>
+          <div style="height: 1px; background: #EEEFF2"></div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline">
+            <span style="font-size: 14px; font-weight: 600">Total</span>
+            <span style="font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 20px; line-height: 26px; font-weight: 800">{{sum.total}}</span>
+          </div>
+          <sc-if value="{{sum.hasDeposit}}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 13px; line-height: 18px; color: #4A505C; margin-top: -8px">{{sum.deposit}}</span>
+          </sc-if>
+          <sc-if value="{{showCta}}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <button type="button" onClick="{{next}}" disabled="{{ctaDisabled}}" style="height: 52px; width: 100%; border-radius: 12px; border: 0; background: {{ctaBg}}; color: {{ctaFg}}; font-family: inherit; font-size: 15px; font-weight: 700; cursor: {{ctaCursor}}">{{ctaLabel}}</button>
+              <sc-if value="{{showHint}}" hint-placeholder-val="{{ true }}"><span style="font-size: 12px; line-height: 16px; color: #5B616E; text-align: center">{{ctaHint}}</span></sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{isStep5}}" hint-placeholder-val="{{ false }}">
+            <span style="align-self: flex-start; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #0B6B45; background: #E7F6EE; border-radius: 999px; padding: 6px 12px">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+              Confirmed
+            </span>
+          </sc-if>
+          <span style="font-size: 12px; line-height: 17px; color: #5B616E">{{policy}}</span>
+        </div>
+      </aside>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{showFooter}}" hint-placeholder-val="{{ true }}">
+    <footer style="padding: 20px 16px 28px; text-align: center; font-size: 12px; line-height: 16px; color: #5B616E">Powered by <strong style="color: #2B2F36">Digital Services Master</strong> · <a href="#" style="color: #5B616E">Privacy</a> · <a href="#" style="color: #5B616E">Terms</a></footer>
+  </sc-if>
+
+  <sc-if value="{{showBar}}" hint-placeholder-val="{{ false }}">
+    <div style="position: sticky; bottom: 0; z-index: 5; background: #FFFFFF; border-top: 1px solid #E6E7EB; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 -6px 20px rgba(16,17,21,0.06)">
+      <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column">
+        <span style="font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: 17px; line-height: 22px; font-weight: 800">{{bar.top}}</span>
+        <span style="font-size: 12px; line-height: 16px; color: #5B616E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{bar.sub}}</span>
+      </div>
+      <button type="button" onClick="{{next}}" disabled="{{ctaDisabled}}" style="height: 48px; padding: 0 22px; border-radius: 12px; border: 0; background: {{ctaBg}}; color: {{ctaFg}}; font-family: inherit; font-size: 15px; font-weight: 700; cursor: {{ctaCursor}}; flex: 0 0 auto">{{ctaLabel}}</button>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"demo":{"editor":"enum","options":["Aesthetic clinic","Dental clinic","Photo booth / events"],"default":"Aesthetic clinic","section":"Demo"},"accent":{"editor":"color","options":["#5B4BDB","#0F766E","#1D4ED8","#B4235A"],"default":"#5B4BDB","section":"Brand"},"embed":{"editor":"boolean","default":false,"section":"Layout"},"phone":{"editor":"boolean","default":false,"section":"Layout"},"minh":{"editor":null,"default":""},"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.state = { step: 1, cat: 'all', serviceId: null, addons: [], staffId: null, monthOffset: 0, date: null, time: null, tz: null, first: '', last: '', email: '', phone: '', cc: '+63', answers: {}, agree: false, sms: true, w: 0 };
+    this.rootRef = (el) => { this.el = el; };
+  }
+
+  componentDidMount() {
+    this.measure();
+    try {
+      if (typeof ResizeObserver !== 'undefined' && this.el) {
+        this.ro = new ResizeObserver(() => this.measure());
+        this.ro.observe(this.el);
+      }
+    } catch (e) {}
+  }
+
+  componentDidUpdate(prev) {
+    if (prev && prev.demo !== this.props.demo) {
+      this.setState({ step: 1, cat: 'all', serviceId: null, addons: [], staffId: null, monthOffset: 0, date: null, time: null, tz: null, answers: {} });
+    }
+  }
+
+  componentWillUnmount() {
+    try { if (this.ro) this.ro.disconnect(); } catch (e) {}
+  }
+
+  measure() {
+    if (!this.el) return;
+    var w = this.el.offsetWidth || 0;
+    if (w && Math.abs(w - (this.state.w || 0)) > 4) this.setState({ w: w });
+  }
+
+  rgb(hex) {
+    var h = String(hex || '').replace('#', '');
+    if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+    var n = parseInt(h, 16);
+    if (h.length !== 6 || isNaN(n)) return [91, 75, 219];
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  lum(c) {
+    var f = function (v) { v = v / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+  }
+
+  mix(c, a) {
+    var m = function (v) { return Math.round(255 + (v - 255) * a); };
+    return 'rgb(' + m(c[0]) + ', ' + m(c[1]) + ', ' + m(c[2]) + ')';
+  }
+
+  fmt(min) {
+    var m = ((min % 1440) + 1440) % 1440;
+    var h = Math.floor(m / 60), mm = m % 60;
+    var ap = h >= 12 ? 'PM' : 'AM';
+    var h12 = h % 12 === 0 ? 12 : h % 12;
+    return h12 + ':' + (mm < 10 ? '0' : '') + mm + ' ' + ap;
+  }
+
+  durLabel(d) {
+    if (d < 60) return d + ' min';
+    var h = Math.floor(d / 60), m = d % 60;
+    return h + (h === 1 ? ' hr' : ' hrs') + (m ? ' ' + m + ' min' : '');
+  }
+
+  money(cur, n) {
+    if (!n) return 'Free';
+    return cur + Number(n).toLocaleString('en-US');
+  }
+
+  dkey(dt) {
+    var m = dt.getMonth() + 1, d = dt.getDate();
+    return dt.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  }
+
+  pdate(k) {
+    var p = String(k).split('-');
+    return new Date(+p[0], +p[1] - 1, +p[2]);
+  }
+
+  hash(str) {
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+
+  tzs() {
+    return [
+      { id: 'Asia/Manila', city: 'Manila', off: 8 },
+      { id: 'Asia/Singapore', city: 'Singapore', off: 8 },
+      { id: 'Australia/Perth', city: 'Perth', off: 8 },
+      { id: 'Australia/Brisbane', city: 'Brisbane', off: 10 },
+      { id: 'Australia/Sydney', city: 'Sydney', off: 11 },
+      { id: 'Asia/Dubai', city: 'Dubai', off: 4 },
+      { id: 'Europe/London', city: 'London', off: 0 },
+      { id: 'America/New_York', city: 'New York', off: -5 },
+      { id: 'America/Los_Angeles', city: 'Los Angeles', off: -8 }
+    ];
+  }
+
+  slotsFor(D, dt, staffId, dur) {
+    var today = new Date(2026, 10, 19);
+    var diff = Math.round((dt - today) / 86400000);
+    var dow = dt.getDay();
+    var b = D.biz;
+    if (diff < 0 || diff > 60) return [];
+    if (b.closed.indexOf(dow) >= 0) return [];
+    var k = this.dkey(dt);
+    if (this.hash(k + b.slug) % 7 === 3) return [];
+    var close = dow === 6 ? b.satClose : b.close;
+    var ids = staffId && staffId !== 'any' ? [staffId] : D.staff.map(function (x) { return x.id; });
+    var out = [];
+    for (var t = b.open; t + dur <= close; t += b.step) {
+      if (diff === 0 && t < 840) continue;
+      var free = false;
+      for (var i = 0; i < ids.length; i++) {
+        if (this.hash(k + ':' + t + ':' + ids[i]) % 3 !== 0) { free = true; break; }
+      }
+      if (free) out.push(t);
+    }
+    return out;
+  }
+
+  nextLabel(D, id, dur, delta) {
+    var WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    for (var i = 0; i <= 30; i++) {
+      var dt = new Date(2026, 10, 19 + i);
+      var sl = this.slotsFor(D, dt, id, dur);
+      if (sl.length) {
+        var day = i === 0 ? 'Today' : (i === 1 ? 'Tomorrow' : WD[dt.getDay()] + ' ' + dt.getDate() + ' ' + MON[dt.getMonth()]);
+        return 'Next: ' + day + ', ' + this.fmt(sl[0] + delta);
+      }
+    }
+    return 'Fully booked';
+  }
+
+  demos() {
+    return {
+      aesthetic: {
+        biz: { name: 'Lumen Skin Studio', initials: 'LS', kind: 'Skin & laser clinic', place: 'Poblacion, Makati City', off: 8, tzId: 'Asia/Manila', cur: '₱', closed: [0], open: 540, close: 1080, satClose: 900, step: 30, slug: 'lumen-skin-studio' },
+        svcNoun: 'service', svcTitle: 'Select a service', staffNoun: 'Professional', staffTitle: 'Choose a professional', anyName: 'Any professional', anyRole: 'Most availability',
+        staffSub: 'Pick someone you know, or let the studio match you with whoever is free first.',
+        cats: [['all', 'All'], ['pkg', 'Packages'], ['consult', 'Consultations'], ['facial', 'Facials'], ['laser', 'Laser']],
+        services: [
+          { id: 'a1', cat: 'consult', name: 'Skin consultation', dur: 30, price: 0, desc: 'Skin assessment and a personalised treatment plan with our doctor.' },
+          { id: 'a2', cat: 'facial', name: 'Hydrating signature facial', dur: 60, price: 2800, desc: 'Deep cleanse, gentle exfoliation, extractions and a hydrating mask.' },
+          { id: 'a3', cat: 'facial', name: 'Acne clearing facial', dur: 75, price: 3200, desc: 'Targeted extractions, blue LED and a calming mask.' },
+          { id: 'a4', cat: 'laser', name: 'Pico laser toning', dur: 45, price: 4500, desc: 'Evens skin tone and fades pigmentation. Numbing cream included.' },
+          { id: 'a5', cat: 'laser', name: 'Laser hair removal — underarm', dur: 30, price: 1500, desc: 'Diode laser, priced per session.' },
+          { id: 'a6', cat: 'pkg', pkg: true, name: 'Glow reset package', dur: 60, meta: '60 min per session', price: 7500, badge: '3 sessions', desc: 'Three signature facials. Book your first session now and the rest later.', includes: ['3 × Hydrating signature facial', 'Take-home hydrating serum'], addons: [{ id: 'x1', name: 'LED light therapy', price: 800 }, { id: 'x2', name: 'Neck & décolleté add-on', price: 600 }] }
+        ],
+        staff: [
+          { id: 't1', name: 'Dr. Ana Reyes', role: 'Dermatologist', initials: 'AR', color: '#5B4BDB' },
+          { id: 't2', name: 'Mia Santos', role: 'Senior aesthetician', initials: 'MS', color: '#0F766E' },
+          { id: 't3', name: 'Jules Tan', role: 'Laser specialist', initials: 'JT', color: '#B45309' }
+        ],
+        questions: [
+          { id: 'q1', type: 'yesno', label: 'Is this your first visit with us?', req: true },
+          { id: 'q2', type: 'select', label: 'What is your main skin concern?', options: ['Acne', 'Pigmentation', 'Dryness', 'Fine lines', 'Something else'], req: false },
+          { id: 'q3', type: 'long', label: 'Any allergies, medications or recent treatments we should know about?', req: false }
+        ],
+        policy: 'Free cancellation or rescheduling up to 24 hours before your appointment.'
+      },
+      dental: {
+        biz: { name: 'Brightside Dental Care', initials: 'BD', kind: 'Family dental clinic', place: 'IT Park, Cebu City', off: 8, tzId: 'Asia/Manila', cur: '₱', closed: [0], open: 540, close: 1080, satClose: 720, step: 30, slug: 'brightside-dental' },
+        svcNoun: 'treatment', svcTitle: 'Select a treatment', staffNoun: 'Dentist', staffTitle: 'Choose a dentist', anyName: 'Any available dentist', anyRole: 'Earliest appointment',
+        staffSub: 'Returning patients can keep their usual dentist. New patients can take the earliest slot.',
+        cats: [['all', 'All'], ['pkg', 'Packages'], ['general', 'General'], ['cosmetic', 'Cosmetic'], ['kids', 'Kids']],
+        services: [
+          { id: 'd1', cat: 'general', name: 'Check-up & cleaning', dur: 45, price: 1200, desc: 'Exam, scaling and polishing. X-rays quoted separately if needed.' },
+          { id: 'd2', cat: 'general', name: 'Tooth-colored filling', dur: 60, price: 1800, from: true, desc: 'Composite filling, priced per surface.' },
+          { id: 'd3', cat: 'general', name: 'Emergency visit', dur: 30, price: 800, desc: 'For pain, swelling or a broken tooth.' },
+          { id: 'd4', cat: 'cosmetic', name: 'In-clinic teeth whitening', dur: 90, price: 9500, desc: 'One-visit whitening with a shade check before and after.' },
+          { id: 'd5', cat: 'kids', name: "Kids' first visit", dur: 30, price: 800, desc: 'A gentle introduction to the dentist for ages 2 to 6.' },
+          { id: 'd6', cat: 'pkg', pkg: true, name: 'Braces starter package', dur: 60, meta: '60 min per visit', price: 4500, badge: '2 visits', desc: 'Orthodontic consultation, records and a treatment plan.', includes: ['Orthodontic consultation', 'Panoramic X-ray and photos', 'Treatment plan visit'], addons: [{ id: 'y1', name: 'Digital 3D scan', price: 2500 }, { id: 'y2', name: 'Cleaning before records', price: 1200 }] }
+        ],
+        staff: [
+          { id: 'u1', name: 'Dr. Paolo Cruz', role: 'General dentist', initials: 'PC', color: '#1D4ED8' },
+          { id: 'u2', name: 'Dr. Bea Lim', role: 'Orthodontist', initials: 'BL', color: '#7C3AED' },
+          { id: 'u3', name: 'Dr. Karla Uy', role: 'Pediatric dentist', initials: 'KU', color: '#0F766E' }
+        ],
+        questions: [
+          { id: 'q1', type: 'yesno', label: 'Are you a new patient?', req: true },
+          { id: 'q2', type: 'select', label: 'How will you pay?', options: ['Cash or card', 'HMO', 'Company account'], req: true },
+          { id: 'q3', type: 'yesno', label: 'Are you in pain right now?', req: false },
+          { id: 'q4', type: 'short', label: 'HMO provider (if paying by HMO)', req: false }
+        ],
+        policy: 'Please give at least 12 hours notice if you need to cancel or reschedule.'
+      },
+      events: {
+        biz: { name: 'Snapshot Booth Co.', initials: 'SB', kind: 'Photo booth rentals', place: 'Serving Los Angeles & Orange County', off: -8, tzId: 'America/Los_Angeles', cur: '$', closed: [], open: 600, close: 1380, satClose: 1380, step: 60, slug: 'snapshot-booth-co' },
+        svcNoun: 'package', svcTitle: 'Choose a package', staffNoun: 'Booth', staffTitle: 'Choose your booth', anyName: 'Any available booth', anyRole: 'Most dates open',
+        staffSub: 'Each booth has a different look. Pick one, or take whichever is free on your date.',
+        deposit: 0.3,
+        cats: [['all', 'All'], ['pkg', 'Packages'], ['booth', 'Booth rentals']],
+        services: [
+          { id: 'e1', cat: 'booth', name: '2-hour photo booth', dur: 120, price: 450, desc: 'Unlimited 4×6 prints, digital gallery and an on-site attendant.' },
+          { id: 'e2', cat: 'booth', name: '3-hour photo booth', dur: 180, price: 650, desc: 'Everything in 2 hours, plus a custom print template.' },
+          { id: 'e3', cat: 'booth', name: '3-hour 360 video booth', dur: 180, price: 850, desc: 'Slow-motion 360 videos shared by text and QR code.' },
+          { id: 'e4', cat: 'pkg', pkg: true, name: 'Wedding all-inclusive', dur: 300, price: 1450, badge: '5 hours', desc: 'Built for receptions: booth, guest book and setup on the day.', includes: ['5 hours of booth time', 'Scrapbook guest book with attendant', 'Custom backdrop and props'], addons: [{ id: 'z1', name: 'Extra hour', price: 150 }, { id: 'z2', name: 'Flower wall backdrop', price: 180 }, { id: 'z3', name: 'Second booth (360 video)', price: 600 }] },
+          { id: 'e5', cat: 'pkg', pkg: true, name: 'Corporate brand activation', dur: 240, price: 1200, badge: '4 hours', desc: 'Branded prints, lead capture and a live slideshow.', includes: ['4 hours of booth time', 'Branded print and screen overlays', 'Email and survey lead capture'], addons: [{ id: 'z4', name: 'Extra hour', price: 175 }, { id: 'z5', name: 'Post-event analytics report', price: 90 }] }
+        ],
+        staff: [
+          { id: 'b1', name: 'Classic white booth', role: 'Open-air, fits 8 people', initials: 'CW', color: '#334155' },
+          { id: 'b2', name: 'Mirror booth', role: 'Full-length touch screen', initials: 'MB', color: '#0E7490' },
+          { id: 'b3', name: 'Rose gold booth', role: 'Enclosed, popular for weddings', initials: 'RG', color: '#B4235A' }
+        ],
+        questions: [
+          { id: 'q1', type: 'select', label: 'What kind of event is it?', options: ['Wedding', 'Birthday', 'Corporate', 'School or prom', 'Something else'], req: true },
+          { id: 'q2', type: 'short', label: 'Venue name and address', req: true },
+          { id: 'q3', type: 'short', label: 'Estimated number of guests', req: false },
+          { id: 'q4', type: 'yesno', label: 'Is the booth location indoors?', req: false }
+        ],
+        policy: 'A 30% deposit secures your date and is refundable up to 14 days before the event.'
+      }
+    };
+  }
+
+  renderVals() {
+    var self = this;
+    var s = this.state;
+    var p = this.props || {};
+    var INK = '#0F1115', LINE = '#E6E7EB', LINE2 = '#D9DBE1';
+    var WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var WDL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var MONL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    var demoProp = String(p.demo || 'Aesthetic clinic');
+    var dk = demoProp.indexOf('Dental') === 0 ? 'dental' : (demoProp.indexOf('Photo') === 0 ? 'events' : 'aesthetic');
+    var D = this.demos()[dk];
+    var b = D.biz;
+
+    var accent = p.accent || '#5B4BDB';
+    var rgb = this.rgb(accent);
+    var onAccent = this.lum(rgb) > 0.45 ? INK : '#FFFFFF';
+    var soft = this.mix(rgb, 0.09);
+
+    var embed = !!p.embed;
+    var phone = !!p.phone || (s.w > 0 && s.w < 760);
+
+    var svc = D.services.filter(function (x) { return x.id === s.serviceId; })[0] || null;
+    var dur = svc ? svc.dur : 60;
+    var TZ = this.tzs();
+    var tzId = s.tz || b.tzId;
+    var tz = TZ.filter(function (z) { return z.id === tzId; })[0] || TZ[0];
+    var delta = (tz.off - b.off) * 60;
+    var gmt = function (o) { return 'GMT' + (o >= 0 ? '+' : '-') + Math.abs(o); };
+    var staffKey = s.staffId || 'any';
+
+    // ---------- step 1: categories + services
+    var catKey = D.cats.some(function (c) { return c[0] === s.cat; }) ? s.cat : 'all';
+    var cats = D.cats.map(function (c) {
+      var on = c[0] === catKey;
+      return { label: c[1], on: on, bg: on ? INK : '#FFFFFF', fg: on ? '#FFFFFF' : INK, border: on ? INK : LINE2, pick: function () { self.setState({ cat: c[0] }); } };
+    });
+    var svcList = D.services.filter(function (x) { return catKey === 'all' || x.cat === catKey; }).map(function (x) {
+      var on = s.serviceId === x.id;
+      return {
+        name: x.name, desc: x.desc, pkg: !!x.pkg, badge: x.badge || '', includes: x.includes || [],
+        durLabel: x.meta || self.durLabel(x.dur),
+        priceLabel: (x.from ? 'from ' : '') + self.money(b.cur, x.price),
+        on: on, off: !on,
+        bg: on ? soft : '#FFFFFF', border: on ? accent : LINE, ring: on ? accent : 'transparent',
+        iconBg: on ? accent : '#FFFFFF', iconFg: on ? onAccent : INK, iconBorder: on ? accent : LINE2,
+        showAddons: on && !!(x.addons && x.addons.length),
+        addonList: (x.addons || []).map(function (a) {
+          return { name: a.name, price: self.money(b.cur, a.price), on: s.addons.indexOf(a.id) >= 0, toggle: function () {
+            var cur = self.state.addons.slice();
+            var i = cur.indexOf(a.id);
+            if (i >= 0) cur.splice(i, 1); else cur.push(a.id);
+            self.setState({ addons: cur });
+          } };
+        }),
+        pick: function () { self.setState({ serviceId: x.id, addons: self.state.serviceId === x.id ? self.state.addons : [], time: null }); }
+      };
+    });
+
+    // ---------- step 2: staff / resources
+    var staffAll = [{ id: 'any', any: true, name: D.anyName, role: D.anyRole, initials: '', color: accent }].concat(D.staff);
+    var staffList = staffAll.map(function (st) {
+      var on = s.staffId === st.id;
+      return {
+        name: st.name, role: st.role, initials: st.initials, any: !!st.any, notAny: !st.any, on: on,
+        next: self.nextLabel(D, st.id, dur, delta),
+        bg: on ? soft : '#FFFFFF', border: on ? accent : LINE, ring: on ? accent : 'transparent',
+        avBg: st.any ? soft : st.color, avFg: st.any ? accent : '#FFFFFF',
+        pick: function () { self.setState({ staffId: st.id, time: null }); }
+      };
+    });
+    var staffSel = s.staffId ? (staffAll.filter(function (x) { return x.id === s.staffId; })[0] || null) : null;
+
+    // ---------- step 3: calendar
+    var firstAvail = null;
+    for (var i = 0; i <= 60 && !firstAvail; i++) {
+      var fdt = new Date(2026, 10, 19 + i);
+      if (this.slotsFor(D, fdt, staffKey, dur).length) firstAvail = this.dkey(fdt);
+    }
+    var selKey = s.date || firstAvail;
+    var mo = new Date(2026, 10 + s.monthOffset, 1);
+    var cy = mo.getFullYear(), cm = mo.getMonth();
+    var lead = mo.getDay();
+    var dim = new Date(cy, cm + 1, 0).getDate();
+    var cells = [];
+    for (var bI = 0; bI < lead; bI++) cells.push({ blank: true, isDay: false, d: '', disabled: true, selected: false, aria: '', bg: 'transparent', fg: INK, dot: 'transparent', ring: 'transparent', weight: 400, cursor: 'default', pick: null });
+    for (let d = 1; d <= dim; d++) {
+      let dt = new Date(cy, cm, d);
+      let k = this.dkey(dt);
+      let avail = this.slotsFor(D, dt, staffKey, dur).length > 0;
+      let sel = k === selKey;
+      let isToday = k === '2026-11-19';
+      cells.push({
+        blank: false, isDay: true, d: d, disabled: !avail, selected: sel,
+        aria: WDL[dt.getDay()] + ' ' + d + ' ' + MONL[cm] + (avail ? '' : ', unavailable'),
+        bg: sel ? accent : 'transparent',
+        fg: sel ? onAccent : (avail ? INK : '#A9AEB8'),
+        weight: avail ? 600 : 400,
+        dot: sel ? onAccent : (avail ? accent : 'transparent'),
+        ring: isToday && !sel ? LINE2 : 'transparent',
+        cursor: avail ? 'pointer' : 'default',
+        pick: function () { self.setState({ date: k, time: null }); }
+      });
+    }
+    var cal = {
+      title: MONL[cm] + ' ' + cy,
+      wd: WD,
+      cells: cells,
+      prevDisabled: s.monthOffset <= 0, nextDisabled: s.monthOffset >= 2,
+      prevColor: s.monthOffset <= 0 ? '#C4C7CE' : INK, nextColor: s.monthOffset >= 2 ? '#C4C7CE' : INK,
+      prev: function () { if (self.state.monthOffset > 0) self.setState({ monthOffset: self.state.monthOffset - 1 }); },
+      next: function () { if (self.state.monthOffset < 2) self.setState({ monthOffset: self.state.monthOffset + 1 }); }
+    };
+
+    // ---------- step 3: slots
+    var selDt = selKey ? this.pdate(selKey) : null;
+    var raw = selDt ? this.slotsFor(D, selDt, staffKey, dur) : [];
+    var gm = { Morning: [], Afternoon: [], Evening: [] };
+    raw.forEach(function (t) {
+      var disp = t + delta;
+      var shift = Math.floor(disp / 1440);
+      var norm = ((disp % 1440) + 1440) % 1440;
+      var g = norm < 720 ? 'Morning' : (norm < 1020 ? 'Afternoon' : 'Evening');
+      var on = s.time === t && s.date === selKey;
+      gm[g].push({ norm: norm, label: self.fmt(disp), shift: shift !== 0, shiftLabel: shift > 0 ? 'next day' : 'previous day', on: on, bg: on ? accent : '#FFFFFF', fg: on ? onAccent : INK, border: on ? accent : LINE2, pick: function () { self.setState({ time: t, date: selKey }); } });
+    });
+    var groups = ['Morning', 'Afternoon', 'Evening'].filter(function (g) { return gm[g].length; }).map(function (g) {
+      return { label: g, items: gm[g].sort(function (x, y) { return x.norm - y.norm; }) };
+    });
+    var slots = {
+      dateLabel: selDt ? WDL[selDt.getDay()] + ', ' + selDt.getDate() + ' ' + MONL[selDt.getMonth()] : 'Select a date',
+      countLabel: raw.length ? raw.length + ' start times available' : 'Fully booked',
+      empty: !raw.length, groups: groups
+    };
+
+    // ---------- summary
+    var addSel = svc && svc.addons ? svc.addons.filter(function (a) { return s.addons.indexOf(a.id) >= 0; }) : [];
+    var total = (svc ? svc.price : 0) + addSel.reduce(function (n, a) { return n + a.price; }, 0);
+    var totalLabel = svc ? (svc.from ? 'from ' : '') + this.money(b.cur, total) : '—';
+    var hasWhen = !!svc && s.time !== null && s.time !== undefined && !!s.date;
+    var whenDate = '', whenTime = '', clinicTime = '', whenShort = '';
+    if (hasWhen) {
+      var wd0 = this.pdate(s.date);
+      var ds = s.time + delta;
+      var shiftDays = Math.floor(ds / 1440);
+      var shown = new Date(wd0.getFullYear(), wd0.getMonth(), wd0.getDate() + shiftDays);
+      whenDate = WDL[shown.getDay()] + ', ' + shown.getDate() + ' ' + MONL[shown.getMonth()] + ' ' + shown.getFullYear();
+      whenTime = this.fmt(ds) + ' – ' + this.fmt(ds + dur) + ' (' + gmt(tz.off) + ')';
+      whenShort = WD[shown.getDay()] + ' ' + shown.getDate() + ' ' + MON[shown.getMonth()] + ', ' + this.fmt(ds);
+      if (delta !== 0) clinicTime = b.name + ' local time: ' + this.fmt(s.time) + ' (' + gmt(b.off) + ')';
+    }
+    var sum = {
+      noService: !svc, hasService: !!svc,
+      svcName: svc ? svc.name : '', svcMeta: svc ? (svc.meta || this.durLabel(svc.dur)) : '', svcPrice: svc ? (svc.from ? 'from ' : '') + this.money(b.cur, svc.price) : '',
+      addons: addSel.map(function (a) { return { name: a.name, price: self.money(b.cur, a.price) }; }),
+      hasStaff: !!staffSel, staffLine: staffSel ? (staffSel.any ? D.anyName : 'With ' + staffSel.name) : '',
+      staffInitials: staffSel ? (staffSel.any ? 'ANY' : staffSel.initials) : '', staffAvBg: staffSel ? (staffSel.any ? soft : staffSel.color) : '#FFFFFF', staffAvFg: staffSel && staffSel.any ? accent : '#FFFFFF',
+      hasWhen: hasWhen, whenDate: whenDate, whenTime: whenTime, hasClinicTime: !!clinicTime, clinicTime: clinicTime,
+      total: totalLabel,
+      hasDeposit: !!D.deposit && !!svc, deposit: D.deposit && svc ? Math.round(D.deposit * 100) + '% deposit (' + this.money(b.cur, Math.round(total * D.deposit)) + ') due after the business confirms' : ''
+    };
+
+    // ---------- step 4: questions + validation
+    var ans = s.answers || {};
+    var qList = D.questions.map(function (q) {
+      var v = ans[q.id] || '';
+      var set = function (val) { var a = Object.assign({}, self.state.answers); a[q.id] = val; self.setState({ answers: a }); };
+      var opts = q.type === 'yesno' ? ['Yes', 'No'] : (q.options || []);
+      return {
+        fid: 'q-' + q.id, label: q.label, req: !!q.req,
+        isChoice: q.type === 'yesno' || q.type === 'select', isShort: q.type === 'short', isLong: q.type === 'long',
+        value: v, onInput: function (e) { set(e.target.value); },
+        choices: opts.map(function (o, oi) {
+          var on = v === o;
+          return { id: oi === 0 ? 'q-' + q.id : 'q-' + q.id + '-' + oi, label: o, on: on, bg: on ? soft : '#FFFFFF', border: on ? accent : LINE2, ring: on ? accent : 'transparent', weight: on ? 700 : 500, pick: function () { set(o); } };
+        })
+      };
+    });
+    var reqOk = D.questions.every(function (q) { return !q.req || String(ans[q.id] || '').trim(); });
+    var formOk = !!(s.first.trim() && /.+@.+\..+/.test(s.email) && s.agree && reqOk);
+    var can = [false, !!svc, !!staffSel, hasWhen, formOk, false][s.step] || false;
+    var hints = ['', 'Choose a ' + D.svcNoun + ' to continue.', 'Choose a ' + D.staffNoun.toLowerCase() + ' option to continue.', 'Pick a start time to continue.', 'Fill in the required fields (*) to continue.', ''];
+    var titles = ['', D.svcTitle, D.staffTitle, 'Pick a date & time', 'Your details', ''];
+    var subs = ['', 'Packages can be customized with add-ons before you continue.', D.staffSub, 'Highlighted dates have open times. Times follow the time zone you choose.', 'We only use these details to manage your booking.', ''];
+    var shorts = ['', 'Service', D.staffNoun, 'Date & time', 'Details', ''];
+
+    var labels = ['Service', D.staffNoun, 'Date & time', 'Details'];
+    var steps = labels.map(function (l, idx) {
+      var n = idx + 1, done = n < s.step, cur = n === s.step;
+      return {
+        n: n, label: l, done: done, notDone: !done, sep: n < 4, locked: !done, cursor: done ? 'pointer' : 'default',
+        ariaCurrent: cur ? 'step' : undefined,
+        circleBg: done ? accent : (cur ? INK : '#EEEFF2'), circleFg: done ? onAccent : (cur ? '#FFFFFF' : '#5B616E'),
+        labelColor: (done || cur) ? INK : '#5B616E', pillBg: cur ? '#EEEFF2' : 'transparent',
+        bar: n < s.step ? accent : (n === s.step ? INK : LINE),
+        go: function () { if (done) self.setState({ step: n }); }
+      };
+    });
+
+    var refNum = this.hash(String(s.serviceId) + String(s.date) + String(s.time) + s.email) % 900000 + 100000;
+    var confRows = [
+      [D.svcNoun.charAt(0).toUpperCase() + D.svcNoun.slice(1), svc ? svc.name + (addSel.length ? ' + ' + addSel.length + ' add-on' + (addSel.length > 1 ? 's' : '') : '') : ''],
+      [D.staffNoun, staffSel ? staffSel.name : ''],
+      ['When', whenDate + '\n' + whenTime],
+      ['Where', b.place],
+      ['Total', totalLabel]
+    ].map(function (r, ri, arr) { return { k: r[0], v: r[1], line: ri < arr.length - 1 ? '#EEEFF2' : 'transparent' }; });
+
+    var fieldSetter = function (key) { return function (e) { var o = {}; o[key] = e.target.value; self.setState(o); }; };
+
+    return {
+      rootRef: this.rootRef,
+      minH: p.minh || (embed ? '0px' : (p.phone ? '844px' : '100vh')),
+      pageBg: (embed || phone) ? '#FFFFFF' : '#F7F7F8',
+      maxW: embed ? '100%' : '1160px',
+      pad: phone ? '12px 16px 24px' : (embed ? '24px' : '28px 32px 40px'),
+      h2Size: phone ? '22px' : '26px',
+      accent: accent, onAccent: onAccent, soft: soft,
+      biz: b, svcNoun: D.svcNoun, policy: D.policy,
+      tzShort: tz.city + ' · ' + gmt(tz.off),
+      showHeader: !embed && !phone,
+      showPhoneHeader: !embed && phone,
+      showFull: !(phone || embed) && s.step < 5,
+      showCompact: (phone || embed) && s.step < 5,
+      showStepperBack: embed && s.step > 1 && s.step < 5,
+      showTitle: s.step < 5,
+      showAside: !phone,
+      showBar: phone && s.step < 5,
+      showFooter: !embed,
+      canBack: s.step > 1 && s.step < 5,
+      back: function () { if (self.state.step > 1) self.setState({ step: self.state.step - 1 }); },
+      steps: steps, stepNum: Math.min(s.step, 4), stepShort: shorts[s.step] || '',
+      stepTitle: titles[s.step] || '', stepSub: subs[s.step] || '',
+      isStep1: s.step === 1, isStep2: s.step === 2, isStep3: s.step === 3, isStep4: s.step === 4, isStep5: s.step === 5,
+      cats: cats, svcList: svcList, staffList: staffList,
+      tzValue: tz.id,
+      setTz: function (e) { self.setState({ tz: e.target.value }); },
+      tzDiffers: delta !== 0,
+      tzNote: 'Times are shown in ' + tz.city + ' time (' + gmt(tz.off) + '). ' + b.name + ' is in ' + gmt(b.off) + '.',
+      cal: cal, slots: slots,
+      first: s.first, last: s.last, email: s.email, phone: s.phone, cc: s.cc,
+      setFirst: fieldSetter('first'), setLast: fieldSetter('last'), setEmail: fieldSetter('email'), setPhone: fieldSetter('phone'), setCc: fieldSetter('cc'),
+      qList: qList,
+      agree: s.agree, sms: s.sms,
+      toggleAgree: function () { self.setState({ agree: !self.state.agree }); },
+      toggleSms: function () { self.setState({ sms: !self.state.sms }); },
+      sum: sum,
+      showCta: s.step < 5,
+      ctaLabel: s.step === 4 ? 'Confirm booking' : 'Continue',
+      ctaDisabled: !can,
+      ctaBg: can ? INK : '#E6E7EB', ctaFg: can ? '#FFFFFF' : '#6B7280', ctaCursor: can ? 'pointer' : 'not-allowed',
+      showHint: !can && s.step < 5, ctaHint: hints[s.step] || '',
+      next: function () {
+        if (!can) return;
+        self.setState({ step: s.step === 4 ? 5 : s.step + 1 });
+      },
+      conf: { email: s.email || 'your email', ref: 'BK-' + refNum, rows: confRows },
+      reset: function () { self.setState({ step: 1, cat: 'all', serviceId: null, addons: [], staffId: null, monthOffset: 0, date: null, time: null, answers: {}, agree: false }); },
+      bar: {
+        top: svc ? totalLabel : 'Nothing selected',
+        sub: svc ? [svc.name, hasWhen ? whenShort : (svc.meta || self.durLabel(svc.dur))].join(' · ') : 'Choose a ' + D.svcNoun + ' to get started'
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

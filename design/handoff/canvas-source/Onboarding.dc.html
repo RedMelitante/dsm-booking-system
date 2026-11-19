@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Business setup</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div ref="{{rootRef}}" style="width: 100%; min-height: {{minH}}; display: flex; flex-direction: column; background: #F7F7F8; color: #0F1115; font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; line-height: 22px; box-sizing: border-box">
+
+  <header style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: {{headPad}}; box-sizing: border-box">
+    <span style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 32px; height: 32px; border-radius: 9px; background: #0F1115; color: #FFFFFF; display: flex; align-items: center; justify-content: center">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4M9 14.5l2 2 4-4"></path></svg>
+      </span>
+      <span style="font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: {{brandSize}}; font-weight: 800; white-space: nowrap">Digital Services Master</span>
+    </span>
+    <a href="Home.dc.html" style="font-size: 14px; font-weight: 600; color: #4A505C">Log out</a>
+  </header>
+
+  <main style="flex: 1 0 auto; display: flex; justify-content: center; align-items: flex-start; padding: {{mainPad}}; box-sizing: border-box">
+    <div style="width: 100%; max-width: 680px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5B616E">Step {{step}} of 2 · {{stepName}}</span>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px">
+          <span style="height: 4px; border-radius: 999px; background: {{bar1}}"></span>
+          <span style="height: 4px; border-radius: 999px; background: {{bar2}}"></span>
+        </div>
+      </div>
+
+      <div style="background: #FFFFFF; border: 1px solid #E6E7EB; border-radius: 16px; padding: {{cardPad}}; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px">
+
+        <!-- STEP 1 -->
+        <sc-if value="{{isStep1}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: {{h1Size}}; line-height: 1.25; font-weight: 800; letter-spacing: -0.015em">Tell us about your business</h1>
+            <p style="margin: 0; font-size: 14px; line-height: 20px; color: #5B616E">This sets up your booking page. You can change all of it later.</p>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="ob-name" style="font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36">Business name <span style="color: #C2362B">*</span></label>
+            <input id="ob-name" type="text" value="{{name}}" onChange="{{setName}}" placeholder="e.g. Lumen Skin Studio" aria-invalid="{{nameBad}}" style="height: 48px; border: 1px solid {{nameBorder}}; box-shadow: {{nameRing}}; border-radius: 10px; padding: 0 14px; font-family: inherit; font-size: 16px; color: #0F1115; background: #FFFFFF; box-sizing: border-box; width: 100%">
+            <sc-if value="{{nameBad}}" hint-placeholder-val="{{ false }}">
+              <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 18px; color: #A12A20"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>Enter your business name.</span>
+            </sc-if>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="ob-slug" style="font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36">Booking page address <span style="color: #C2362B">*</span></label>
+            <div style="display: flex; align-items: center; height: 48px; border: 1px solid {{slugBorder}}; box-shadow: {{slugRing}}; border-radius: 10px; background: #F7F7F8; overflow: hidden; box-sizing: border-box">
+              <span style="padding: 0 6px 0 12px; font-size: {{prefixSize}}; color: #5B616E; white-space: nowrap">[domain]/</span>
+              <input id="ob-slug" type="text" value="{{slug}}" onChange="{{setSlug}}" placeholder="your-business" aria-describedby="ob-slug-status" style="flex: 1 1 auto; min-width: 60px; height: 46px; border: 0; border-left: 1px solid #E6E7EB; background: #FFFFFF; padding: 0 12px; font-family: inherit; font-size: 16px; font-weight: 600; color: #0F1115">
+            </div>
+            <span id="ob-slug-status" style="display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 18px; color: {{slugMsgColor}}">
+              <sc-if value="{{slugOk}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></sc-if>
+              <sc-if value="{{slugErr}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg></sc-if>
+              {{slugMsg}}
+            </span>
+            <sc-if value="{{hasSuggest}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+                <span style="font-size: 13px; color: #4A505C">Try:</span>
+                <sc-for list="{{suggest}}" as="sg" hint-placeholder-count="3">
+                  <button type="button" onClick="{{sg.pick}}" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">{{sg.label}}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="ob-site" style="font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36">Your website <span style="font-weight: 400; color: #5B616E">(optional)</span></label>
+            <input id="ob-site" type="url" value="{{site}}" onChange="{{setSite}}" placeholder="https://yourbusiness.com" style="height: 48px; border: 1px solid #D9DBE1; border-radius: 10px; padding: 0 14px; font-family: inherit; font-size: 16px; color: #0F1115; background: #FFFFFF; box-sizing: border-box; width: 100%">
+            <span style="font-size: 12px; line-height: 16px; color: #5B616E">We'll show you how to embed your booking page there.</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <span style="font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5B616E">Preview</span>
+            <div style="display: flex; align-items: center; gap: 12px; border: 1px solid #E6E7EB; border-radius: 12px; padding: 12px 14px; background: #FCFCFD">
+              <span style="width: 40px; height: 40px; border-radius: 10px; background: #5B4BDB; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-weight: 800; font-size: 14px; flex: 0 0 auto">{{initials}}</span>
+              <span style="display: flex; flex-direction: column; min-width: 0">
+                <span style="font-size: 15px; line-height: 20px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{previewName}}</span>
+                <span style="font-size: 12px; line-height: 16px; color: #5B616E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">[domain]/{{previewSlug}}</span>
+              </span>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; border-top: 1px solid #EEEFF2; padding-top: 18px">
+            <button type="button" onClick="{{next}}" style="height: 48px; padding: 0 24px; border-radius: 12px; border: 0; background: #0F1115; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px">
+              Continue
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+            </button>
+          </div>
+        </sc-if>
+
+        <!-- STEP 2 -->
+        <sc-if value="{{isStep2}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <h1 style="margin: 0; font-family: 'Plus Jakarta Sans', Inter, sans-serif; font-size: {{h1Size}}; line-height: 1.25; font-weight: 800; letter-spacing: -0.015em">Pick a starting template</h1>
+            <p style="margin: 0; font-size: 14px; line-height: 20px; color: #5B616E">We'll pre-load sample services and intake questions for your industry. Edit or delete them any time.</p>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <div role="radiogroup" aria-label="Industry template" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px">
+              <sc-for list="{{templates}}" as="tp" hint-placeholder-count="3">
+                <button type="button" role="radio" aria-checked="{{tp.on}}" onClick="{{tp.pick}}" style="position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px; border-radius: 14px; border: 1px solid {{tp.border}}; box-shadow: 0 0 0 1px {{tp.ring}}; background: {{tp.bg}}; font-family: inherit; color: inherit; text-align: left; cursor: pointer; box-sizing: border-box">
+                  <span style="width: 36px; height: 36px; border-radius: 10px; background: {{tp.iconBg}}; color: {{tp.iconFg}}; display: flex; align-items: center; justify-content: center">
+                    <sc-if value="{{tp.isClinic}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"></path></svg></sc-if>
+                    <sc-if value="{{tp.isSalon}}" hint-placeholder-val="{{ true }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"></path><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z"></path></svg></sc-if>
+                    <sc-if value="{{tp.isEvents}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"></rect><path d="M8.5 7l1.5-3h4l1.5 3"></path><circle cx="12" cy="13.5" r="3.5"></circle></svg></sc-if>
+                  </span>
+                  <span style="font-size: 15px; line-height: 20px; font-weight: 700">{{tp.label}}</span>
+                  <span style="font-size: 13px; line-height: 18px; color: #4A505C">{{tp.desc}}</span>
+                  <span style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px">
+                    <sc-for list="{{tp.services}}" as="ts" hint-placeholder-count="3">
+                      <span style="font-size: 11px; line-height: 14px; font-weight: 600; color: #2B2F36; background: #F1F1F4; border-radius: 999px; padding: 3px 8px">{{ts}}</span>
+                    </sc-for>
+                  </span>
+                  <span style="font-size: 12px; line-height: 16px; color: #5B616E">{{tp.meta}}</span>
+                  <sc-if value="{{tp.on}}" hint-placeholder-val="{{ false }}">
+                    <span aria-hidden="true" style="position: absolute; top: 12px; right: 12px; width: 22px; height: 22px; border-radius: 999px; background: #5B4BDB; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+                  </sc-if>
+                </button>
+              </sc-for>
+            </div>
+            <button type="button" onClick="{{pickBlank}}" aria-pressed="{{blankOn}}" style="align-self: flex-start; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px {{blankStyle}} {{blankBorder}}; background: {{blankBg}}; color: #2B2F36; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">{{blankLabel}}</button>
+            <sc-if value="{{tplBad}}" hint-placeholder-val="{{ false }}">
+              <span role="alert" style="display: flex; align-items: center; gap: 6px; font-size: 13px; line-height: 18px; color: #A12A20"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5v.01"></path></svg>Choose a template, or start from scratch.</span>
+            </sc-if>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px">
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36">
+              Currency
+              <select value="{{currency}}" onChange="{{setCurrency}}" style="height: 48px; border: 1px solid #D9DBE1; border-radius: 10px; padding: 0 10px; font-family: inherit; font-size: 15px; font-weight: 400; color: #0F1115; background: #FFFFFF">
+                <option value="PHP">PHP · Philippine peso (₱)</option>
+                <option value="AUD">AUD · Australian dollar ($)</option>
+                <option value="USD">USD · US dollar ($)</option>
+                <option value="SGD">SGD · Singapore dollar (S$)</option>
+                <option value="NZD">NZD · New Zealand dollar ($)</option>
+                <option value="GBP">GBP · British pound (£)</option>
+              </select>
+            </label>
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 18px; font-weight: 600; color: #2B2F36">
+              Time zone
+              <select value="{{tz}}" onChange="{{setTz}}" style="height: 48px; border: 1px solid #D9DBE1; border-radius: 10px; padding: 0 10px; font-family: inherit; font-size: 15px; font-weight: 400; color: #0F1115; background: #FFFFFF">
+                <option value="Asia/Manila">(GMT+8) Manila</option>
+                <option value="Asia/Singapore">(GMT+8) Singapore</option>
+                <option value="Australia/Perth">(GMT+8) Perth</option>
+                <option value="Australia/Brisbane">(GMT+10) Brisbane</option>
+                <option value="Australia/Sydney">Sydney, Melbourne (AEST/AEDT)</option>
+                <option value="Pacific/Auckland">Auckland (NZST/NZDT)</option>
+                <option value="America/Los_Angeles">Los Angeles (PT)</option>
+                <option value="Europe/London">London (GMT/BST)</option>
+              </select>
+              <span style="font-weight: 400; font-size: 12px; line-height: 16px; color: #5B616E">Detected from your browser. Customers can still view times in their own zone.</span>
+            </label>
+          </div>
+
+          <div style="background: #F7F7F8; border: 1px solid #EEEFF2; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+            <span style="font-size: 13px; line-height: 18px; font-weight: 700">Here's what we'll set up</span>
+            <sc-for list="{{summary}}" as="sm" hint-placeholder-count="4">
+              <span style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 20px">
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0E7A4F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto; margin-top: 2px"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+                <span style="min-width: 0"><span style="color: #5B616E">{{sm.k}}:</span> <span style="font-weight: 600">{{sm.v}}</span></span>
+              </span>
+            </sc-for>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; border-top: 1px solid #EEEFF2; padding-top: 18px">
+            <button type="button" onClick="{{back}}" style="height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid #D9DBE1; background: #FFFFFF; color: #0F1115; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg>
+              Back
+            </button>
+            <sc-if value="{{canFinish}}" hint-placeholder-val="{{ false }}">
+              <a href="Dashboard.dc.html" style="flex: 1 1 220px; max-width: 320px; height: 48px; padding: 0 22px; border-radius: 12px; background: #0F1115; color: #FFFFFF; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 700; box-sizing: border-box">
+                Create my booking page
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+              </a>
+            </sc-if>
+            <sc-if value="{{cantFinish}}" hint-placeholder-val="{{ true }}">
+              <button type="button" onClick="{{tryFinish}}" style="flex: 1 1 220px; max-width: 320px; height: 48px; padding: 0 22px; border-radius: 12px; border: 0; background: #0F1115; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer">Create my booking page</button>
+            </sc-if>
+          </div>
+        </sc-if>
+      </div>
+      <span style="font-size: 12px; line-height: 16px; color: #5B616E; text-align: center">Next stop: your dashboard, with sample services, hours and your booking link ready to share.</span>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"phone":{"editor":"boolean","default":false,"section":"Layout"},"minh":{"editor":null,"default":""},"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.state = { w: 0, step: 1, name: '', slug: '', slugEdited: false, site: '', template: null, currency: 'PHP', tz: 'Asia/Manila', tried1: false, tried2: false };
+    this.rootRef = (el) => { this.el = el; };
+  }
+
+  componentDidMount() {
+    this.measure();
+    try {
+      if (typeof ResizeObserver !== 'undefined' && this.el) {
+        this.ro = new ResizeObserver(() => this.measure());
+        this.ro.observe(this.el);
+      }
+    } catch (e) {}
+  }
+
+  componentWillUnmount() {
+    try { if (this.ro) this.ro.disconnect(); } catch (e) {}
+  }
+
+  measure() {
+    if (!this.el) return;
+    var w = this.el.offsetWidth || 0;
+    if (w && Math.abs(w - (this.state.w || 0)) > 4) this.setState({ w: w });
+  }
+
+  slugify(v) {
+    return String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+/, '').replace(/-{2,}/g, '-').slice(0, 40);
+  }
+
+  renderVals() {
+    var self = this;
+    var s = this.state;
+    var p = this.props || {};
+    var narrow = !!p.phone || (s.w > 0 && s.w < 600);
+    var ACC = '#5B4BDB', SOFT = 'rgb(240, 239, 252)', LINE = '#E6E7EB';
+
+    // ---- step 1: slug claim
+    var slug = String(s.slug || '').replace(/-+$/, '');
+    var RESERVED = ['admin', 'api', 'app', 'book', 'dashboard', 'login', 'signup', 'help', 'www', 'demo', 'test'];
+    var TAKEN = ['lumen-skin-studio', 'brightside-dental', 'snapshot-booth-co', 'glow', 'smile', 'smiles'];
+    var status = 'empty', msg = 'Pick a short web address for your page.';
+    if (slug.length > 0 && slug.length < 3) { status = 'error'; msg = 'Use at least 3 characters.'; }
+    else if (RESERVED.indexOf(slug) >= 0) { status = 'error'; msg = 'That address is reserved. Try another.'; }
+    else if (TAKEN.indexOf(slug) >= 0) { status = 'taken'; msg = '[domain]/' + slug + ' is already taken.'; }
+    else if (slug.length >= 3) { status = 'ok'; msg = '[domain]/' + slug + ' is available.'; }
+    if (status === 'empty' && s.tried1) { status = 'error'; msg = 'Choose an address for your booking page.'; }
+    var suggest = status === 'taken' ? [slug + '-ph', slug + '-bookings', slug + '-2'].map(function (x) { return { label: x, pick: function () { self.setState({ slug: x, slugEdited: true }); } }; }) : [];
+    var nameBad = s.tried1 && !String(s.name || '').trim();
+    var slugBad = status === 'error' || status === 'taken';
+    var words = String(s.name || '').trim().split(/\s+/).filter(Boolean);
+    var initials = words.length ? (words[0].charAt(0) + (words[1] ? words[1].charAt(0) : '')).toUpperCase() : '?';
+
+    // ---- step 2: templates
+    var TPL = [
+      { id: 'clinic', label: 'Clinics & Medical', desc: 'Dental, medical, physio and aesthetic clinics', noun: 'Dentist / Doctor', services: ['Consultation', 'Check-up & cleaning', 'Follow-up visit'], qs: 3 },
+      { id: 'salon', label: 'Salons & Wellness', desc: 'Skin, hair, nails, spa and massage', noun: 'Professional', services: ['Signature facial', 'Haircut & blow-dry', '60-min massage'], qs: 3 },
+      { id: 'events', label: 'Events & Rentals', desc: 'Photo booths, venues, equipment and party rentals', noun: 'Booth / resource', services: ['2-hour package', 'Wedding package', 'Extra hour add-on'], qs: 3 }
+    ];
+    var templates = TPL.map(function (t) {
+      var on = s.template === t.id;
+      return {
+        label: t.label, desc: t.desc, services: t.services, meta: t.qs + ' intake questions · staff called "' + t.noun + '"',
+        on: on, isClinic: t.id === 'clinic', isSalon: t.id === 'salon', isEvents: t.id === 'events',
+        bg: on ? SOFT : '#FFFFFF', border: on ? ACC : LINE, ring: on ? ACC : 'transparent',
+        iconBg: on ? ACC : '#F1F1F4', iconFg: on ? '#FFFFFF' : '#2B2F36',
+        pick: function () { self.setState({ template: t.id, tried2: false }); }
+      };
+    });
+    var chosen = TPL.filter(function (t) { return t.id === s.template; })[0] || null;
+    var blankOn = s.template === 'blank';
+    var CUR = { PHP: 'Philippine peso (₱)', AUD: 'Australian dollar ($)', USD: 'US dollar ($)', SGD: 'Singapore dollar (S$)', NZD: 'New Zealand dollar ($)', GBP: 'British pound (£)' };
+    var summary = [
+      { k: 'Booking page', v: '[domain]/' + (slug || 'your-business') },
+      { k: 'Business', v: String(s.name || '').trim() || 'Your business' },
+      { k: 'Template', v: chosen ? chosen.label + ' · ' + chosen.services.length + ' sample services, ' + chosen.qs + ' questions' : (blankOn ? 'Blank, no sample services' : 'Not chosen yet') },
+      { k: 'Prices and hours', v: CUR[s.currency] + ' · ' + s.tz + ' · Mon–Fri 9:00–6:00 to start' }
+    ];
+
+    return {
+      rootRef: this.rootRef,
+      minH: p.minh || (p.phone ? '844px' : '100vh'),
+      headPad: narrow ? '16px 16px 0' : '24px 32px',
+      brandSize: narrow ? '15px' : '17px',
+      prefixSize: narrow ? '13px' : '15px',
+      mainPad: narrow ? '16px 16px 28px' : '16px 32px 48px',
+      cardPad: narrow ? '22px 18px' : '32px',
+      h1Size: narrow ? '22px' : '26px',
+      step: s.step, stepName: s.step === 1 ? 'Your business' : 'Template & region',
+      bar1: s.step >= 2 ? ACC : '#0F1115', bar2: s.step >= 2 ? '#0F1115' : LINE,
+      isStep1: s.step === 1, isStep2: s.step === 2,
+      name: s.name,
+      setName: function (e) {
+        var v = e.target.value;
+        var o = { name: v };
+        if (!self.state.slugEdited) o.slug = self.slugify(v);
+        self.setState(o);
+      },
+      nameBad: nameBad, nameBorder: nameBad ? '#C2362B' : '#D9DBE1', nameRing: nameBad ? '0 0 0 3px rgba(194,54,43,0.12)' : 'none',
+      slug: s.slug,
+      setSlug: function (e) {
+        var v = String(e.target.value || '').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-{2,}/g, '-').slice(0, 40);
+        self.setState({ slug: v, slugEdited: true });
+      },
+      slugOk: status === 'ok', slugErr: slugBad,
+      slugMsg: msg, slugMsgColor: status === 'ok' ? '#0B6B45' : (slugBad ? '#A12A20' : '#5B616E'),
+      slugBorder: slugBad ? '#C2362B' : (status === 'ok' ? '#0E7A4F' : '#D9DBE1'),
+      slugRing: slugBad ? '0 0 0 3px rgba(194,54,43,0.12)' : 'none',
+      hasSuggest: suggest.length > 0, suggest: suggest,
+      site: s.site, setSite: function (e) { self.setState({ site: e.target.value }); },
+      initials: initials, previewName: String(s.name || '').trim() || 'Your business name', previewSlug: slug || 'your-business',
+      next: function () {
+        if (String(self.state.name || '').trim() && status === 'ok') self.setState({ step: 2 });
+        else self.setState({ tried1: true });
+      },
+      templates: templates,
+      blankOn: blankOn, blankLabel: blankOn ? 'Starting from scratch' : 'Start from scratch instead',
+      blankBg: blankOn ? SOFT : '#FFFFFF', blankBorder: blankOn ? ACC : '#B8BCC6', blankStyle: blankOn ? 'solid' : 'dashed',
+      pickBlank: function () { self.setState({ template: 'blank', tried2: false }); },
+      tplBad: s.tried2 && !s.template,
+      currency: s.currency, setCurrency: function (e) { self.setState({ currency: e.target.value }); },
+      tz: s.tz, setTz: function (e) { self.setState({ tz: e.target.value }); },
+      summary: summary,
+      back: function () { self.setState({ step: 1 }); },
+      canFinish: !!s.template, cantFinish: !s.template,
+      tryFinish: function () { self.setState({ tried2: true }); }
+    };
+  }
+}
+</script>
+</body>
+</html>
