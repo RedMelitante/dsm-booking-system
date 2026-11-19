@@ -8,9 +8,7 @@ The whole app runs on **Cloudflare Workers**: a Worker serves the JSON API and t
 
 ```bash
 npm install
-npm run db:migrate:local     # create the local D1 database
-npm run db:seed:local        # optional: the three demo businesses from the design
-npm run cf:dev               # build + run the Worker at http://localhost:8787
+npm run cf:dev               # build + run the Worker at http://localhost:8787 (the local database sets itself up)
 ```
 
 For frontend work with hot reload, run `npx wrangler dev` in one terminal and `npm run dev` in another (Vite on :5173 proxies `/api` to the Worker).
@@ -21,29 +19,29 @@ npm test                     # availability and time-zone unit tests
 
 ## Deploy to Cloudflare
 
-1. Log in and create the database:
-   ```bash
-   npx wrangler login
-   ```
-   ```bash
-   npx wrangler d1 create dsm-booking
-   ```
-   Copy the printed `database_id` into `wrangler.jsonc`.
-2. Optional settings (see the table below): set `EMAIL_FROM` and `GOOGLE_CLIENT_ID` in `wrangler.jsonc`, then add the secrets:
-   ```bash
-   npx wrangler secret put RESEND_API_KEY
-   ```
-   ```bash
-   npx wrangler secret put GOOGLE_CLIENT_SECRET
-   ```
-3. Deploy (builds, applies migrations to the remote database, deploys the Worker):
-   ```bash
-   npm run deploy
-   ```
-4. Optional: load the demo businesses so the homepage's "Try the demo booking page" works:
-   ```bash
-   npm run db:seed:remote
-   ```
+**With Cloudflare's Git integration** (Workers & Pages → connect this repo): use build command `npm run build` and deploy command `npx wrangler deploy`. Every push to `main` deploys.
+
+**From your machine:**
+```bash
+npx wrangler login
+```
+```bash
+npm run deploy
+```
+
+There's no database to create by hand:
+- On the first deploy, Wrangler creates the `dsm-booking` D1 database (there's no `database_id` in `wrangler.jsonc` on purpose) and reuses it on every deploy after that.
+- The Worker applies the SQL files in `migrations/` itself on its first request. That includes `0002_demo_businesses.sql`, so the homepage's "Try the demo booking page" works straight away.
+
+Applied migrations are recorded in the same `d1_migrations` table that `wrangler d1 migrations apply` uses, so running that command as well is harmless.
+
+Optional settings (see the table below): set `EMAIL_FROM` and `GOOGLE_CLIENT_ID` in `wrangler.jsonc` (or as variables in the Cloudflare dashboard), and add the secrets:
+```bash
+npx wrangler secret put RESEND_API_KEY
+```
+```bash
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+```
 
 The app works without email or Google configured: emails are logged instead of sent, and the Google sign-in button and Calendar connect button are hidden.
 
@@ -88,8 +86,8 @@ worker/index.js         Worker entry: /api routes, static assets, cron
 worker/routes/          auth.js (accounts, sessions, Google, password reset), owner.js (dashboard API), public.js (booking page API)
 worker/lib/             availability, time zones, auth, email (Resend + .ics), Google OAuth/Calendar, side effects, defaults/templates
 worker/cron.js          Reminders, daily agenda, follow-ups, completion, two-way calendar sync
-migrations/             D1 schema
-scripts/seed-demo.mjs   SQL for the three demo businesses (from src/data/demo-businesses.json)
+migrations/             D1 schema and demo businesses, applied by the Worker (worker/lib/migrate.js)
+scripts/seed-demo.mjs   Regenerates/resets the demo businesses (from src/data/demo-businesses.json)
 test/                   Unit tests (node --test)
 src/App.jsx             Routes, auth guards, data loading
 src/pages/              One page per design board, plus 404 and password reset
