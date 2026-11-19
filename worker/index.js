@@ -4,6 +4,7 @@ import * as auth from './routes/auth.js';
 import * as owner from './routes/owner.js';
 import * as pub from './routes/public.js';
 import { runScheduled } from './cron.js';
+import { ensureSchema } from './lib/migrate.js';
 
 const routes = [
   ['GET', '/api/auth/me', (e, r) => auth.me(e, r)],
@@ -67,6 +68,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/')) {
       try {
+        await ensureSchema(env);
         return await handleApi(request, env, ctx);
       } catch (e) {
         return errorResponse(e);
@@ -76,6 +78,6 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runScheduled(env));
+    ctx.waitUntil(ensureSchema(env).then(() => runScheduled(env)));
   },
 };
