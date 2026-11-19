@@ -2,6 +2,7 @@
 // Markup, inline styles and copy are kept as designed; the logic class is the board's own.
 import React from 'react';
 import { DCLogic } from '../lib/dc.js';
+import { ORIGIN } from '../lib/site.js';
 
 class EmbedDemoPageLogic extends DCLogic {
   componentDidMount() {
@@ -223,7 +224,7 @@ export default class EmbedDemoPage extends EmbedDemoPageLogic {
                 }}
               >
                 {
-                  '<iframe src="https://[domain]/lumen-skin-studio?embed=true"\n  title="Book an appointment" loading="lazy"\n  style="width:100%;min-height:720px;border:0"></iframe>\n<script src="https://[domain]/embed.js" async></script>'
+                  '<iframe src="' + ORIGIN + '/lumen-skin-studio?embed=true"\n  title="Book an appointment" loading="lazy"\n  style="width:100%;min-height:720px;border:0"></iframe>\n<script src="' + ORIGIN + '/embed.js" async></script>'
                 }
               </code>
             </div>

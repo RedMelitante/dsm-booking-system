@@ -1,12 +1,35 @@
 {
-  // Cloudflare Workers: serves the built app from ./dist as static assets.
-  // Unknown paths (/dashboard/..., /[business-slug]) fall back to index.html so
-  // the client router can handle them. Add `main` here when the API Worker lands.
+  // Cloudflare Workers: /api/* is handled by worker/index.js; everything else is
+  // the built app in ./dist. Unknown paths (/dashboard/..., /[business-slug])
+  // fall back to index.html so the client router can handle them.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "dsm-booking-system",
+  "main": "worker/index.js",
   "compatibility_date": "2025-09-01",
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dsm-booking",
+      // Replace with the id printed by `npx wrangler d1 create dsm-booking`.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+  "vars": {
+    // Verified sender address for Resend, e.g. "bookings@yourdomain.com". Leave empty to log emails instead.
+    "EMAIL_FROM": "",
+    // Google OAuth client ID. Leave empty to hide Google sign-in and Calendar.
+    "GOOGLE_CLIENT_ID": ""
+  },
+  "observability": { "enabled": true }
+  // Secrets (set with `npx wrangler secret put NAME`): RESEND_API_KEY, GOOGLE_CLIENT_SECRET
 }

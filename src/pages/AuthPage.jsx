@@ -2,6 +2,8 @@
 // Markup, inline styles and copy are kept as designed; the logic class is the board's own.
 import React from 'react';
 import { DCLogic } from '../lib/dc.js';
+import { api, getMe, clearMe } from '../lib/api.js';
+import { navigate } from '../lib/router.js';
 
 class AuthPageLogic extends DCLogic {
   constructor(...args) {
@@ -14,7 +16,18 @@ class AuthPageLogic extends DCLogic {
   }
 
   blank() {
-    return { name: '', email: '', pw: '', showPw: false, remember: true, submitted: false, serverErr: false };
+    return {
+      name: '',
+      email: '',
+      pw: '',
+      showPw: false,
+      remember: true,
+      submitted: false,
+      serverErr: false,
+      busy: false,
+      takenEmail: '',
+      bannerMsg: '',
+    };
   }
 
   isLoginMode(props) {
@@ -28,7 +41,44 @@ class AuthPageLogic extends DCLogic {
     return { name: '', email: 'maria@', pw: 'abc', submitted: true, serverErr: false };
   }
 
+  // Enter in any field submits, like a form.
+  onKey = (e) => {
+    if (e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') this.send();
+  };
+
+  nextPath(me) {
+    var q = new URLSearchParams(window.location.search);
+    var next = q.get('next');
+    if (next && next.charAt(0) === '/' && next.charAt(1) !== '/') return next;
+    if (this.isLoginMode(this.props)) return me.businesses && me.businesses.length ? '/dashboard' : '/setup';
+    return '/setup' + (q.get('slug') ? '?slug=' + encodeURIComponent(q.get('slug')) : '');
+  }
+
+  // Validates on the client first, then calls the API.
+  async send() {
+    var s = this.state;
+    if (s.busy) return;
+    this.setState({ submitted: true });
+    if (!this.lastValid) return;
+    var login = this.isLoginMode(this.props);
+    this.setState({ busy: true, bannerMsg: '' });
+    try {
+      var body = login
+        ? { email: s.email.trim(), password: s.pw, remember: s.remember }
+        : { name: s.name.trim(), email: s.email.trim(), password: s.pw };
+      var me = await api(login ? '/auth/login' : '/auth/signup', { method: 'POST', body: body });
+      clearMe();
+      await getMe(true);
+      navigate(this.nextPath(me));
+    } catch (e) {
+      if (e.status === 409) this.setState({ busy: false, takenEmail: s.email.trim().toLowerCase() });
+      else if (e.status === 401) this.setState({ busy: false, serverErr: true });
+      else this.setState({ busy: false, serverErr: true, bannerMsg: e.message });
+    }
+  }
+
   componentDidMount() {
+    if (this.el) this.el.addEventListener('keydown', this.onKey);
     this.measure();
     try {
       if (typeof ResizeObserver !== 'undefined' && this.el) {
@@ -45,6 +95,7 @@ class AuthPageLogic extends DCLogic {
   }
 
   componentWillUnmount() {
+    if (this.el) this.el.removeEventListener('keydown', this.onKey);
     try {
       if (this.ro) this.ro.disconnect();
     } catch (e) {}
@@ -65,7 +116,7 @@ class AuthPageLogic extends DCLogic {
 
     var email = String(s.email || '').trim();
     var emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    var taken = !login && email.toLowerCase() === 'taken@example.com';
+    var taken = !login && !!s.takenEmail && email.toLowerCase() === s.takenEmail;
     var errs = {
       name: login ? '' : String(s.name || '').trim() ? '' : 'Enter your name.',
       email: !email
@@ -94,7 +145,8 @@ class AuthPageLogic extends DCLogic {
       };
     };
     var valid = !errs.name && !errs.email && !errs.pw;
-    var serverErr = login && !!s.serverErr;
+    var serverErr = !!s.serverErr && (login || !!s.bannerMsg);
+    this.lastValid = valid;
 
     var pw = String(s.pw || '');
     var score = 0;
@@ -133,7 +185,10 @@ class AuthPageLogic extends DCLogic {
         : 'Start on the free plan. Your booking page can be live in minutes.',
       emailLabel: login ? 'Email' : 'Work email',
       pwPlaceholder: login ? 'Your password' : 'At least 8 characters',
-      submitLabel: login ? 'Log in' : 'Create account',
+      submitLabel: s.busy ? (login ? 'Logging in…' : 'Creating account…') : login ? 'Log in' : 'Create account',
+      bannerMsg: s.bannerMsg,
+      showGoogle: !!p.googleEnabled,
+      googleHref: '/api/auth/google/start?mode=login',
       doneHref: login ? '/dashboard' : '/setup',
       switchLead: login ? 'New here?' : 'Already have an account?',
       switchLabel: login ? (narrow ? 'Sign up' : 'Create an account') : 'Log in',
@@ -163,10 +218,9 @@ class AuthPageLogic extends DCLogic {
       toggleRemember: function () {
         self.setState({ remember: !self.state.remember });
       },
-      canGo: valid && !serverErr,
-      cantGo: !(valid && !serverErr),
+      cantGo: true,
       submit: function () {
-        self.setState({ submitted: true });
+        self.send();
       },
     };
   }
@@ -323,67 +377,77 @@ export default class AuthPage extends AuthPageLogic {
                     <path d="M12 7.5v5.5M12 16.5v.01" />
                   </svg>
                   <span style={{ fontSize: '14px', lineHeight: '20px', color: '#7A1F17' }}>
-                    {"That email and password don't match. Try again or "}
-                    <a href="#" style={{ color: '#7A1F17', fontWeight: '700' }}>
-                      reset your password
-                    </a>
-                    .
+                    {v.bannerMsg ? (
+                      v.bannerMsg
+                    ) : (
+                      <>
+                        {"That email and password don't match. Try again or "}
+                        <a href="/forgot-password" style={{ color: '#7A1F17', fontWeight: '700' }}>
+                          reset your password
+                        </a>
+                        .
+                      </>
+                    )}
                   </span>
                 </div>
               </>
             ) : null}
-            <a
-              href={v.doneHref}
-              style={{
-                height: '48px',
-                borderRadius: '12px',
-                border: '1px solid #D9DBE1',
-                background: '#FFFFFF',
-                color: '#0F1115',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                fontSize: '15px',
-                fontWeight: '600',
-              }}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '999px',
-                  border: '1.5px solid #0F1115',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
-                  fontSize: '12px',
-                  fontWeight: '800',
-                  boxSizing: 'border-box',
-                }}
-              >
-                G
-              </span>
-              {' Continue with Google'}
-            </a>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                fontSize: '12px',
-                lineHeight: '16px',
-                fontWeight: '600',
-                color: '#5B616E',
-              }}
-            >
-              <span style={{ flex: '1 1 auto', height: '1px', background: '#E6E7EB' }} />
-              or use your email
-              <span style={{ flex: '1 1 auto', height: '1px', background: '#E6E7EB' }} />
-            </div>
+            {v.showGoogle ? (
+              <>
+                <a
+                  href={v.googleHref}
+                  style={{
+                    height: '48px',
+                    borderRadius: '12px',
+                    border: '1px solid #D9DBE1',
+                    background: '#FFFFFF',
+                    color: '#0F1115',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '999px',
+                      border: '1.5px solid #0F1115',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontFamily: "'Plus Jakarta Sans', Inter, sans-serif",
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    G
+                  </span>
+                  {' Continue with Google'}
+                </a>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    fontSize: '12px',
+                    lineHeight: '16px',
+                    fontWeight: '600',
+                    color: '#5B616E',
+                  }}
+                >
+                  <span style={{ flex: '1 1 auto', height: '1px', background: '#E6E7EB' }} />
+                  or use your email
+                  <span style={{ flex: '1 1 auto', height: '1px', background: '#E6E7EB' }} />
+                </div>
+              </>
+            ) : null}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {v.isSignup ? (
                 <>
@@ -529,7 +593,7 @@ export default class AuthPage extends AuthPageLogic {
                   </label>
                   {v.isLogin ? (
                     <>
-                      <a href="#" style={{ fontSize: '13px', fontWeight: '600', color: '#2B2F36' }}>
+                      <a href="/forgot-password" style={{ fontSize: '13px', fontWeight: '600', color: '#2B2F36' }}>
                         Forgot password?
                       </a>
                     </>
@@ -711,27 +775,6 @@ export default class AuthPage extends AuthPageLogic {
                 </>
               ) : null}
             </div>
-            {v.canGo ? (
-              <>
-                <a
-                  href={v.doneHref}
-                  style={{
-                    height: '52px',
-                    borderRadius: '12px',
-                    background: '#0F1115',
-                    color: '#FFFFFF',
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '15px',
-                    fontWeight: '700',
-                  }}
-                >
-                  {v.submitLabel}
-                </a>
-              </>
-            ) : null}
             {v.cantGo ? (
               <>
                 <button

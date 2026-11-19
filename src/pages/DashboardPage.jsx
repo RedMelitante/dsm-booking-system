@@ -3,184 +3,321 @@
 import React from 'react';
 import { DCLogic } from '../lib/dc.js';
 
+import { api, getMe } from '../lib/api.js';
+import { navigate } from '../lib/router.js';
+import { offsetHours } from '../lib/clock.js';
+import { withHost } from '../lib/site.js';
+import { dateKeyInZone, dowOfKey, addDays, zonedToUtc, partsInZone } from '../../worker/lib/time.js';
+
+const initialsOf = (name) => {
+  const w = String(name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return w.length ? (w[0].charAt(0) + (w[1] ? w[1].charAt(0) : '')).toUpperCase() : '?';
+};
+
+const ACCENT = '#5B4BDB';
+const pad2 = (n) => (n < 10 ? '0' : '') + n;
+const hhmm = (min) => pad2(Math.floor(min / 60)) + ':' + pad2(min % 60);
+const toMin = (s) => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(s || ''));
+  return m ? +m[1] * 60 + +m[2] : 0;
+};
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const NOTIFY_KEYS = [
+  ['newBooking', 'New booking alert', 'Email you the moment someone books, with their answers.'],
+  ['confirmation', 'Customer confirmation', 'Booking details and an .ics calendar file for the customer.'],
+  ['changes', 'Reschedules & cancellations', 'Notify both you and the customer.'],
+  ['digest', 'Daily agenda', "Today's bookings at 7:00 AM."],
+  ['followUp', 'Follow-up after visit', 'Thank-you email 2 hours after the visit.'],
+];
+const TIMEZONES = [
+  'Asia/Manila',
+  'Asia/Singapore',
+  'Asia/Hong_Kong',
+  'Asia/Tokyo',
+  'Asia/Dubai',
+  'Asia/Kolkata',
+  'Australia/Perth',
+  'Australia/Brisbane',
+  'Australia/Sydney',
+  'Australia/Melbourne',
+  'Pacific/Auckland',
+  'Europe/London',
+  'Europe/Paris',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+];
+
+// Service as edited in the form (numbers kept as strings for the inputs).
+function toEditor(x) {
+  return {
+    id: x.id,
+    name: x.name,
+    cat: x.isPackage ? 'pkg' : x.category,
+    dur: String(x.duration),
+    price: String(x.price),
+    buffer: String(x.buffer),
+    active: x.active,
+    pkg: x.isPackage,
+    staff: x.staffIds.slice(),
+    desc: x.description,
+    includes: x.includes || [],
+    fromPrice: x.fromPrice,
+    badge: x.badge,
+    meta: x.meta,
+    addons: (x.addons || []).map((a) => ({ id: a.id, name: a.name, price: String(a.price) })),
+    questions: (x.questions || []).map((q) => ({
+      id: q.id,
+      label: q.label,
+      type: q.type,
+      req: q.req,
+      options: q.options || [],
+    })),
+  };
+}
+function fromEditor(x) {
+  return {
+    name: x.name,
+    category: x.cat,
+    duration: Number(x.dur) || 60,
+    price: Number(x.price) || 0,
+    buffer: Number(x.buffer) || 0,
+    active: x.active,
+    isPackage: x.cat === 'pkg',
+    staffIds: x.staff,
+    description: x.desc,
+    includes: x.includes,
+    fromPrice: x.fromPrice,
+    badge: x.badge,
+    meta: x.meta,
+    addons: x.addons.map((a) => ({ id: a.id, name: a.name, price: Number(a.price) || 0 })),
+    questions: x.questions.map((q) => ({ id: q.id, label: q.label, type: q.type, req: q.req, options: q.options })),
+  };
+}
+
 class DashboardPageLogic extends DCLogic {
   constructor(...args) {
     super(...args);
+    var props = args[0] || {};
+    var d = props.data;
+    var biz = d.business;
+    var byDow = {};
+    d.hours.forEach(function (h) {
+      byDow[h.dow] = h;
+    });
     this.state = {
-      tab: (args[0] && args[0].tab) || 'bookings',
+      tab: props.tab || 'bookings',
       view: 'week',
       weekOffset: 0,
       staffFilter: 'all',
       openId: null,
-      overrides: {},
       bizMenu: false,
-      bizIdx: 0,
-      services: this.seedServices(),
-      selSvc: 'a2',
+      bookings: [],
+      bLoading: true,
+      bError: '',
+      pendingCount: 0,
+      services: d.services.map(toEditor),
+      selSvc: d.services[0] ? d.services[0].id : null,
       saved: false,
-      hours: [
-        { d: 'Monday', on: true, a: '09:00', b: '18:00' },
-        { d: 'Tuesday', on: true, a: '09:00', b: '18:00' },
-        { d: 'Wednesday', on: true, a: '09:00', b: '18:00' },
-        { d: 'Thursday', on: true, a: '09:00', b: '18:00' },
-        { d: 'Friday', on: true, a: '09:00', b: '18:00' },
-        { d: 'Saturday', on: true, a: '09:00', b: '15:00' },
-        { d: 'Sunday', on: false, a: '09:00', b: '15:00' },
-      ],
-      interval: '30',
-      notice: '2',
-      advance: '60',
-      bizTz: 'Asia/Manila',
-      approval: true,
+      svcErr: '',
+      staff: d.staff,
+      hours: [1, 2, 3, 4, 5, 6, 0].map(function (dow) {
+        var h = byDow[dow] || { isOpen: false, open: 540, close: 1080 };
+        return { dow: dow, d: DAY_NAMES[dow], on: h.isOpen, a: hhmm(h.open), b: hhmm(h.close) };
+      }),
+      interval: String(biz.settings.interval),
+      notice: String(biz.settings.notice),
+      advance: String(biz.settings.advance),
+      bizTz: biz.timezone,
+      approval: biz.settings.approval,
       savedAll: false,
-      timeOff: [
-        { id: 'o1', label: '24 – 25 Dec 2026', note: 'Christmas' },
-        { id: 'o2', label: '31 Dec 2026 – 1 Jan 2027', note: 'New Year' },
-      ],
-      slug: 'lumen-skin-studio',
+      saveErr: '',
+      timeOff: d.timeOff,
+      toDraft: null,
+      toError: '',
+      slug: biz.slug,
+      liveSlug: biz.slug,
+      slugMsg: '',
+      slugBad: false,
       copied: '',
       embedTab: 'inline',
-      brand: '#5B4BDB',
-      staffStep: true,
-      prices: true,
-      gcal: true,
-      gcalCal: 'bookings',
-      conflicts: true,
-      twoWay: true,
-      details: false,
-      mNew: true,
-      mConfirm: true,
-      mChanges: true,
-      mDigest: false,
-      mReview: false,
-      remWhen: '24',
-      ownerEmail: 'hello@lumenskin.example',
-      fromName: 'Lumen Skin Studio',
+      brand: biz.accent,
+      staffStep: biz.settings.staffStep,
+      prices: biz.settings.prices,
+      google: d.google,
+      calendars: [],
+      notify: Object.assign({}, biz.settings.notify),
+      ownerEmail: biz.settings.ownerEmail,
+      fromName: biz.settings.fromName,
       testSent: false,
+      testError: '',
+      note: '',
+      rescheduling: false,
+      rsDate: '',
+      rsTime: '',
+      rsSlots: [],
+      rsNote: '',
+      opError: '',
     };
   }
 
-  componentDidUpdate(prev) {
-    if (prev.tab !== this.props.tab && this.props.tab && this.props.tab !== this.state.tab) {
-      this.setState({ tab: this.props.tab, bizMenu: false });
+  // ---- data
+
+  get bizId() {
+    return this.props.data.business.id;
+  }
+
+  api(path, opts) {
+    return api('/businesses/' + this.bizId + path, opts).catch((e) => {
+      if (e.status === 401) navigate('/login?next=/dashboard', { replace: true });
+      throw e;
+    });
+  }
+
+  tz() {
+    return this.state.bizTz || this.props.data.business.timezone;
+  }
+
+  weekStartKey(offset) {
+    var tz = this.props.data.business.timezone;
+    var today = dateKeyInZone(Date.now(), tz);
+    var dow = dowOfKey(today);
+    return addDays(today, -((dow + 6) % 7) + 7 * offset);
+  }
+
+  async loadWeek() {
+    var tz = this.props.data.business.timezone;
+    var mon = this.weekStartKey(this.state.weekOffset);
+    var from = zonedToUtc(mon, 0, tz),
+      to = zonedToUtc(addDays(mon, 7), 0, tz);
+    var offset = this.state.weekOffset;
+    this.setState({ bLoading: true, bError: '' });
+    try {
+      var r = await this.api('/bookings?from=' + from + '&to=' + to);
+      if (offset === this.state.weekOffset)
+        this.setState({ bookings: r.bookings, pendingCount: r.pendingCount, bLoading: false });
+    } catch (e) {
+      this.setState({ bLoading: false, bError: e.message });
     }
   }
 
-  seedServices() {
-    var qs = function () {
-      return [
-        { id: 'q1', label: 'Is this your first visit with us?', type: 'yesno', req: true },
-        { id: 'q2', label: 'What is your main skin concern?', type: 'choice', req: false },
-        {
-          id: 'q3',
-          label: 'Any allergies, medications or recent treatments we should know about?',
-          type: 'long',
-          req: false,
-        },
-      ];
-    };
-    return [
-      {
-        id: 'a1',
-        name: 'Skin consultation',
-        cat: 'consult',
-        dur: '30',
-        price: '0',
-        buffer: '0',
-        active: true,
-        pkg: false,
-        staff: ['t1'],
-        desc: 'Skin assessment and a personalised treatment plan with our doctor.',
-        questions: qs().filter(function (q) {
-          return q.id !== 'q2';
-        }),
-      },
-      {
-        id: 'a2',
-        name: 'Hydrating signature facial',
-        cat: 'facial',
-        dur: '60',
-        price: '2800',
-        buffer: '10',
-        active: true,
-        pkg: false,
-        staff: ['t1', 't2'],
-        desc: 'Deep cleanse, gentle exfoliation, extractions and a hydrating mask.',
-        questions: qs(),
-      },
-      {
-        id: 'a3',
-        name: 'Acne clearing facial',
-        cat: 'facial',
-        dur: '75',
-        price: '3200',
-        buffer: '10',
-        active: true,
-        pkg: false,
-        staff: ['t2'],
-        desc: 'Targeted extractions, blue LED and a calming mask.',
-        questions: qs(),
-      },
-      {
-        id: 'a7',
-        name: 'Chemical peel',
-        cat: 'facial',
-        dur: '45',
-        price: '2500',
-        buffer: '10',
-        active: false,
-        pkg: false,
-        staff: ['t2'],
-        desc: 'Medium-depth peel. Hidden while the new formula arrives.',
-        questions: qs(),
-      },
-      {
-        id: 'a4',
-        name: 'Pico laser toning',
-        cat: 'laser',
-        dur: '45',
-        price: '4500',
-        buffer: '15',
-        active: true,
-        pkg: false,
-        staff: ['t1', 't3'],
-        desc: 'Evens skin tone and fades pigmentation. Numbing cream included.',
-        questions: qs(),
-      },
-      {
-        id: 'a5',
-        name: 'Laser hair removal — underarm',
-        cat: 'laser',
-        dur: '30',
-        price: '1500',
-        buffer: '5',
-        active: true,
-        pkg: false,
-        staff: ['t3'],
-        desc: 'Diode laser, priced per session.',
-        questions: qs().filter(function (q) {
-          return q.id === 'q1';
-        }),
-      },
-      {
-        id: 'a6',
-        name: 'Glow reset package',
-        cat: 'pkg',
-        dur: '60',
-        price: '7500',
-        buffer: '10',
-        active: true,
-        pkg: true,
-        staff: ['t2'],
-        desc: 'Three signature facials. Book your first session now and the rest later.',
-        includes: ['3 × Hydrating signature facial', 'Take-home hydrating serum'],
-        addons: [
-          { id: 'x1', name: 'LED light therapy', price: '800' },
-          { id: 'x2', name: 'Neck & décolleté add-on', price: '600' },
-        ],
-        questions: qs(),
-      },
-    ];
+  async loadCalendars() {
+    if (!this.state.google.connected) return;
+    try {
+      var r = await this.api('/google/calendars');
+      this.setState({ calendars: r.calendars || [] });
+    } catch (e) {
+      /* the select falls back to the saved calendar id */
+    }
+  }
+
+  componentDidMount() {
+    this.loadWeek();
+    this.loadCalendars();
+  }
+
+  componentDidUpdate(prev, prevState) {
+    if (prev.tab !== this.props.tab && this.props.tab && this.props.tab !== this.state.tab) {
+      this.setState({ tab: this.props.tab, bizMenu: false });
+    }
+    if (prevState.weekOffset !== this.state.weekOffset) this.loadWeek();
+  }
+
+  async patchBusiness(body) {
+    var r = await this.api('', { method: 'PATCH', body: body });
+    return r;
+  }
+
+  async saveSettings(patch) {
+    try {
+      await this.patchBusiness({ settings: patch });
+    } catch (e) {
+      window.alert(e.message);
+    }
+  }
+
+  replaceBooking(b) {
+    this.setState((st) => ({ bookings: st.bookings.map((x) => (x.id === b.id ? b : x)) }));
+  }
+
+  async setStatus(b, status) {
+    if (
+      status === 'cancelled' &&
+      !window.confirm('Cancel this booking? ' + (this.state.notify.changes ? 'The customer will get an email.' : ''))
+    )
+      return;
+    this.setState({ opError: '' });
+    try {
+      var r = await this.api('/bookings/' + b.id, { method: 'PATCH', body: { status: status } });
+      this.replaceBooking(r.booking);
+      this.setState((st) => ({ pendingCount: Math.max(0, st.pendingCount - (b.status === 'pending' ? 1 : 0)) }));
+    } catch (e) {
+      this.setState({ opError: e.message });
+    }
+  }
+
+  async loadSlots(b, date) {
+    this.setState({ rsDate: date, rsSlots: [], rsTime: '', rsNote: 'Checking free times…' });
+    try {
+      var r = await this.api('/bookings/' + b.id + '/slots?date=' + date);
+      this.setState({
+        rsSlots: r.slots,
+        rsTime: r.slots.length ? String(r.slots[0]) : '',
+        rsNote: r.slots.length ? '' : 'No free times that day.',
+      });
+    } catch (e) {
+      this.setState({ rsNote: e.message });
+    }
+  }
+
+  async saveReschedule(b) {
+    this.setState({ opError: '' });
+    try {
+      var r = await this.api('/bookings/' + b.id + '/reschedule', {
+        method: 'POST',
+        body: { date: this.state.rsDate, time: Number(this.state.rsTime) },
+      });
+      this.replaceBooking(r.booking);
+      this.setState({ rescheduling: false });
+      this.loadWeek();
+    } catch (e) {
+      this.setState({ opError: e.message });
+    }
+  }
+
+  updSvc(id, patch) {
+    this.setState({
+      saved: false,
+      svcErr: '',
+      services: this.state.services.map(function (x) {
+        return x.id === id ? Object.assign({}, x, patch) : x;
+      }),
+    });
+  }
+
+  async persistSvc(x) {
+    try {
+      var r = await this.api('/services/' + x.id, { method: 'PUT', body: fromEditor(x) });
+      this.setState((st) => ({ services: st.services.map((y) => (y.id === x.id ? toEditor(r.service) : y)) }));
+      return true;
+    } catch (e) {
+      this.setState({ svcErr: e.message });
+      return false;
+    }
+  }
+
+  async logout() {
+    try {
+      await api('/auth/logout', { method: 'POST' });
+    } catch (e) {
+      /* ignore */
+    }
+    await getMe(true).catch(function () {});
+    navigate('/');
   }
 
   fmt(min) {
@@ -200,38 +337,28 @@ class DashboardPageLogic extends DCLogic {
     return h + (h === 1 ? ' hr' : ' hrs') + (m ? ' ' + m + ' min' : '');
   }
 
-  peso(n) {
+  money(n) {
     n = Number(n) || 0;
-    return n ? '₱' + n.toLocaleString('en-US') : 'Free';
+    return n ? this.props.data.business.currencySymbol + n.toLocaleString('en-US') : 'Free';
   }
 
   sw(on, toggle) {
-    return { on: !!on, track: on ? '#5B4BDB' : '#8C929C', knob: on ? '18px' : '0px', toggle: toggle };
-  }
-
-  updSvc(id, patch) {
-    this.setState({
-      saved: false,
-      services: this.state.services.map(function (x) {
-        return x.id === id ? Object.assign({}, x, patch) : x;
-      }),
-    });
+    return { on: !!on, track: on ? ACCENT : '#8C929C', knob: on ? '18px' : '0px', toggle: toggle };
   }
 
   renderVals() {
     var self = this;
     var s = this.state;
+    var p = this.props;
+    var D = p.data;
+    var B = D.business;
+    var tz = B.timezone;
     var INK = '#0F1115';
     var WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    var WDL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    var WDL = DAY_NAMES;
     var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    var tg = function (k) {
-      return function () {
-        var o = {};
-        o[k] = !self.state[k];
-        self.setState(o);
-      };
-    };
+    var host = window.location.host;
+    var origin = window.location.origin;
     var setter = function (k) {
       return function (e) {
         var o = {};
@@ -239,59 +366,61 @@ class DashboardPageLogic extends DCLogic {
         self.setState(o);
       };
     };
+    var off = offsetHours(tz) || 0;
+    var gmt =
+      'GMT' +
+      (off >= 0 ? '+' : '-') +
+      Math.floor(Math.abs(off)) +
+      (Math.abs(off) % 1 ? ':' + pad2(Math.round((Math.abs(off) % 1) * 60)) : '');
 
-    var BIZ = [
-      { name: 'Lumen Skin Studio', initials: 'LS', site: 'lumenskin.example', color: '#5B4BDB' },
-      { name: 'Brightside Dental Care', initials: 'BD', site: 'brightsidedental.example', color: '#1D4ED8' },
-      { name: 'Snapshot Booth Co.', initials: 'SB', site: 'snapshotbooth.example', color: '#B4235A' },
-    ];
-    var biz = BIZ[s.bizIdx] || BIZ[0];
-    var bizList = BIZ.map(function (bz, i) {
+    // ---- business switcher
+    var me = p.me || { user: {}, businesses: [] };
+    var biz = {
+      name: B.name,
+      initials: initialsOf(B.name),
+      site: B.website || host + '/' + s.liveSlug,
+      color: s.brand,
+    };
+    var bizList = me.businesses.map(function (bz) {
+      var on = bz.id === B.id;
       return {
         name: bz.name,
         initials: bz.initials,
-        site: bz.site,
-        color: bz.color,
-        on: i === s.bizIdx,
-        bg: i === s.bizIdx ? '#F4F3FE' : 'transparent',
+        site: bz.website || host + '/' + bz.slug,
+        color: bz.accent,
+        on: on,
+        bg: on ? '#F4F3FE' : 'transparent',
         pick: function () {
-          self.setState({ bizIdx: i, bizMenu: false });
+          self.setState({ bizMenu: false });
+          if (!on && p.onSwitchBusiness) p.onSwitchBusiness(bz.id);
         },
       };
     });
 
-    var STAFF = {
-      t1: { name: 'Dr. Ana Reyes', short: 'Dr. Ana', initials: 'AR', color: '#5B4BDB', soft: '#ECE9FB' },
-      t2: { name: 'Mia Santos', short: 'Mia', initials: 'MS', color: '#0F766E', soft: '#E0F2EF' },
-      t3: { name: 'Jules Tan', short: 'Jules', initials: 'JT', color: '#B45309', soft: '#FBEEDD' },
-    };
-    var CAT = {
-      a1: { name: 'Skin consultation', dur: 30, price: 0 },
-      a2: { name: 'Hydrating signature facial', dur: 60, price: 2800 },
-      a3: { name: 'Acne clearing facial', dur: 75, price: 3200 },
-      a4: { name: 'Pico laser toning', dur: 45, price: 4500 },
-      a5: { name: 'Laser hair removal — underarm', dur: 30, price: 1500 },
-      a6: { name: 'Glow reset package', dur: 60, price: 7500 },
-    };
-    var RAW = [
-      ['b1', 0, 570, 'a2', 't2', 'Carla Mendoza', 'completed'],
-      ['b2', 0, 660, 'a1', 't1', 'Paolo Garcia', 'completed'],
-      ['b3', 0, 840, 'a4', 't3', 'Trisha Lim', 'completed'],
-      ['b4', 1, 600, 'a3', 't2', 'Nina Villanueva', 'completed'],
-      ['b5', 1, 810, 'a5', 't3', 'Jasmine Co', 'no-show'],
-      ['b6', 2, 540, 'a6', 't2', 'Bea Ramos', 'completed'],
-      ['b7', 2, 900, 'a1', 't1', 'Kevin Ong', 'cancelled'],
-      ['b8', 3, 600, 'a2', 't2', 'Andrea Cruz', 'completed'],
-      ['b9', 3, 840, 'a4', 't3', 'Liza Fernandez', 'confirmed'],
-      ['b10', 3, 930, 'a1', 't1', 'Marco Reyes', 'pending'],
-      ['b11', 3, 960, 'a3', 't2', 'Sofia Tan', 'confirmed'],
-      ['b12', 4, 570, 'a5', 't3', 'Hannah Lopez', 'confirmed'],
-      ['b13', 4, 660, 'a1', 't1', 'Gabriel Santos', 'pending'],
-      ['b14', 4, 780, 'a6', 't2', 'Rina Aquino', 'confirmed'],
-      ['b15', 5, 540, 'a2', 't2', 'Celine Uy', 'confirmed'],
-      ['b16', 5, 630, 'a4', 't3', 'Mae Dizon', 'confirmed'],
-      ['b17', 5, 720, 'a3', 't2', 'Joy Bautista', 'pending'],
-    ];
+    // ---- staff
+    var STAFF = {};
+    s.staff.forEach(function (st) {
+      var c = st.color;
+      var rgb = [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+      var soft =
+        'rgb(' +
+        rgb
+          .map(function (v) {
+            return Math.round(255 + (v - 255) * 0.12);
+          })
+          .join(', ') +
+        ')';
+      var words = st.name.split(' ');
+      STAFF[st.id] = {
+        name: st.name,
+        short: /^(dr|mr|mrs|ms|prof)\.?$/i.test(words[0]) && words[1] ? words[0] + ' ' + words[1] : words[0],
+        initials: st.initials,
+        color: c,
+        soft: soft,
+      };
+    });
+    var unknownStaff = { name: 'Unassigned', short: '—', initials: '?', color: '#6B7280', soft: '#F1F1F4' };
+
     var ST = {
       confirmed: { label: 'Confirmed', bg: '#E7F6EE', fg: '#0B6B45' },
       pending: { label: 'Pending', bg: '#FEF3E2', fg: '#8A4A06' },
@@ -299,88 +428,131 @@ class DashboardPageLogic extends DCLogic {
       cancelled: { label: 'Cancelled', bg: '#FDECEA', fg: '#A12A20' },
       'no-show': { label: 'No-show', bg: '#FDECEA', fg: '#A12A20' },
     };
-    var SOURCES = ['Website embed', 'Booking page', 'Added by staff'];
-    var CONCERNS = ['Pigmentation', 'Acne', 'Dryness', 'Fine lines'];
-    var NOTES = ['None', 'Sensitive to fragrance', 'Had a peel 3 weeks ago', 'None'];
-    var bookings = RAW.map(function (r, i) {
-      var c = CAT[r[3]];
-      var first = r[5].split(' ')[0].toLowerCase();
-      return {
-        id: r[0],
-        day: r[1],
-        t: r[2],
-        svc: c.name,
-        dur: c.dur,
-        price: c.price,
-        staffId: r[4],
-        staff: STAFF[r[4]],
-        cust: r[5],
-        status: s.overrides[r[0]] || r[6],
-        email: first + '.' + r[5].split(' ')[1].toLowerCase().charAt(0) + '@example.com',
-        phone: '+63 917 000 ' + (1000 + i * 37),
-        source: SOURCES[i % 3],
-        ref: 'BK-' + (482910 + i * 113),
-        answers: [
-          { q: 'Is this your first visit with us?', a: i % 2 ? 'No' : 'Yes' },
-          { q: 'What is your main skin concern?', a: CONCERNS[i % 4] },
-          { q: 'Allergies, medications or recent treatments', a: NOTES[i % 4] },
-        ],
-      };
-    });
 
+    // ---- week
+    var mon = this.weekStartKey(s.weekOffset);
+    var todayKey = dateKeyInZone(Date.now(), tz);
+    var nowP = partsInZone(Date.now(), tz);
+    var hoursByDow = {};
+    s.hours.forEach(function (h) {
+      hoursByDow[h.dow] = h;
+    });
+    var bookings = s.bookings.map(function (b) {
+      var pz = partsInZone(b.start, tz);
+      var key = pz.y + '-' + pad2(pz.m) + '-' + pad2(pz.d);
+      var dur = Math.round((b.end - b.start) / 60000);
+      return Object.assign({}, b, {
+        key: key,
+        day: Math.round(
+          (Date.UTC(pz.y, pz.m - 1, pz.d) - Date.UTC(+mon.slice(0, 4), +mon.slice(5, 7) - 1, +mon.slice(8, 10))) /
+            86400000,
+        ),
+        t: pz.min,
+        dur: dur,
+        staff: STAFF[b.staffId] || unknownStaff,
+        cust: (b.firstName + ' ' + b.lastName).trim(),
+      });
+    });
     var live = bookings.filter(function (b) {
       return b.status !== 'cancelled';
     });
-    var pendingCount = bookings.filter(function (b) {
-      return b.status === 'pending';
-    }).length;
-    var todayCount = live.filter(function (b) {
-      return b.day === 3;
-    }).length;
     var value = live
       .filter(function (b) {
         return b.status !== 'no-show';
       })
       .reduce(function (n, b) {
-        return n + b.price;
+        return n + b.total;
       }, 0);
+    var todayCount = live.filter(function (b) {
+      return b.key === todayKey;
+    }).length;
+    var tp = partsInZone(Date.now(), tz);
     var stats = [
-      { label: 'Today', value: String(todayCount), sub: 'Thursday, 19 Nov', color: INK },
-      { label: 'This week', value: String(live.length), sub: 'Bookings, excluding cancellations', color: INK },
+      { label: 'Today', value: String(todayCount), sub: WDL[tp.dow] + ', ' + tp.d + ' ' + MON[tp.m - 1], color: INK },
+      {
+        label: s.weekOffset === 0 ? 'This week' : 'That week',
+        value: String(live.length),
+        sub: 'Bookings, excluding cancellations',
+        color: INK,
+      },
       {
         label: 'Awaiting confirmation',
-        value: String(pendingCount),
-        sub: pendingCount ? 'Open a booking to confirm it' : 'All caught up',
-        color: pendingCount ? '#8A4A06' : INK,
+        value: String(s.pendingCount),
+        sub: s.pendingCount ? 'Open a booking to confirm it' : 'All caught up',
+        color: s.pendingCount ? '#8A4A06' : INK,
       },
-      { label: 'Booked value', value: self.peso(value), sub: 'This week, before discounts', color: INK },
+      {
+        label: 'Booked value',
+        value: value ? self.money(value) : B.currencySymbol + '0',
+        sub: (s.weekOffset === 0 ? 'This week' : 'That week') + ', before discounts',
+        color: INK,
+      },
     ];
 
-    var mon = new Date(2026, 10, 16 + 7 * s.weekOffset);
-    var sat = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 5);
+    // Days shown: Monday–Saturday, plus Sunday when open or booked.
+    var showSunday =
+      hoursByDow[0].on ||
+      bookings.some(function (b) {
+        return b.day === 6;
+      });
+    var dayIdx = showSunday ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 3, 4, 5];
+    var sat = addDays(mon, dayIdx.length - 1);
+    var monM = +mon.slice(5, 7) - 1,
+      satM = +sat.slice(5, 7) - 1;
     var weekLabel =
-      mon.getDate() +
-      (mon.getMonth() !== sat.getMonth() ? ' ' + MON[mon.getMonth()] : '') +
+      +mon.slice(8, 10) +
+      (monM !== satM ? ' ' + MON[monM] : '') +
       ' – ' +
-      sat.getDate() +
+      +sat.slice(8, 10) +
       ' ' +
-      MON[sat.getMonth()] +
+      MON[satM] +
       ' ' +
-      sat.getFullYear();
-    var inWeek = s.weekOffset === 0 ? bookings : [];
-    var shown = inWeek.filter(function (b) {
+      sat.slice(0, 4);
+    var shown = bookings.filter(function (b) {
       return s.staffFilter === 'all' || b.staffId === s.staffFilter;
     });
+
+    // Grid spans opening hours (and any booking outside them), in whole hours.
+    var openDays = s.hours.filter(function (h) {
+      return h.on;
+    });
+    var gs = openDays.length
+      ? Math.min.apply(
+          null,
+          openDays.map(function (h) {
+            return toMin(h.a);
+          }),
+        )
+      : 540;
+    var ge = openDays.length
+      ? Math.max.apply(
+          null,
+          openDays.map(function (h) {
+            return toMin(h.b);
+          }),
+        )
+      : 1080;
+    shown.forEach(function (b) {
+      gs = Math.min(gs, b.t);
+      ge = Math.max(ge, Math.min(1440, b.t + b.dur));
+    });
+    gs = Math.floor(gs / 60) * 60;
+    ge = Math.max(gs + 60, Math.ceil(ge / 60) * 60);
+    var gridH = ge - gs;
 
     var blockFor = function (b) {
       var cancelled = b.status === 'cancelled' || b.status === 'no-show';
       return {
-        top: b.t - 540,
+        top: b.t - gs,
         h: Math.max(b.dur, 32),
+        lane: 0,
+        lanes: 1,
+        start: b.t,
+        end: b.t + Math.max(b.dur, 32),
         time: self.fmt(b.t) + ' – ' + self.fmt(b.t + b.dur),
         cust: b.cust,
-        svc: b.svc,
-        aria: b.cust + ', ' + b.svc + ', ' + self.fmt(b.t) + ', ' + ST[b.status].label,
+        svc: b.serviceName,
+        aria: b.cust + ', ' + b.serviceName + ', ' + self.fmt(b.t) + ', ' + ST[b.status].label,
         bg: cancelled ? '#F3F4F6' : b.staff.soft,
         fg: cancelled ? '#5B616E' : INK,
         border: cancelled ? '#D9DBE1' : b.status === 'pending' ? '#B45309' : b.staff.soft,
@@ -388,37 +560,78 @@ class DashboardPageLogic extends DCLogic {
         dot: cancelled ? '#A9AEB8' : b.staff.color,
         deco: cancelled ? 'line-through' : 'none',
         open: function () {
-          self.setState({ openId: b.id });
+          self.setState({ openId: b.id, note: b.note || '', rescheduling: false, opError: '' });
         },
       };
     };
-    var week = [0, 1, 2, 3, 4, 5].map(function (di) {
-      var dt = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + di);
-      var isToday = s.weekOffset === 0 && di === 3;
+    // Overlapping bookings sit side by side in lanes.
+    var laneOut = function (blocks) {
+      blocks.sort(function (x, y) {
+        return x.start - y.start;
+      });
+      var cluster = [],
+        laneEnds = [],
+        clusterEnd = -1;
+      var flush = function () {
+        cluster.forEach(function (b) {
+          b.lanes = laneEnds.length;
+        });
+        cluster = [];
+        laneEnds = [];
+      };
+      blocks.forEach(function (b) {
+        if (b.start >= clusterEnd) flush();
+        var lane = laneEnds.findIndex(function (e) {
+          return e <= b.start;
+        });
+        if (lane < 0) {
+          lane = laneEnds.length;
+          laneEnds.push(b.end);
+        } else laneEnds[lane] = b.end;
+        b.lane = lane;
+        cluster.push(b);
+        clusterEnd = Math.max(clusterEnd, b.end);
+      });
+      flush();
+      return blocks;
+    };
+    var week = dayIdx.map(function (di) {
+      var key = addDays(mon, di);
+      var dow = dowOfKey(key);
+      var isToday = key === todayKey;
+      var h = hoursByDow[dow];
+      var closed = [];
+      if (!h.on) closed.push({ top: 0, h: gridH });
+      else {
+        if (toMin(h.a) > gs) closed.push({ top: 0, h: toMin(h.a) - gs });
+        if (toMin(h.b) < ge) closed.push({ top: toMin(h.b) - gs, h: ge - toMin(h.b) });
+      }
       return {
-        wd: WD[dt.getDay()],
-        num: dt.getDate(),
-        numBg: isToday ? '#5B4BDB' : 'transparent',
+        wd: WD[dow],
+        num: +key.slice(8, 10),
+        numBg: isToday ? ACCENT : 'transparent',
         numFg: isToday ? '#FFFFFF' : INK,
         colBg: isToday ? '#FBFAFF' : '#FFFFFF',
-        hasClosed: di === 5,
-        closedTop: 360,
-        closedH: 180,
-        showNow: isToday,
-        nowTop: 708 - 540,
-        blocks: shown
-          .filter(function (b) {
-            return b.day === di;
-          })
-          .map(blockFor),
+        closed: closed,
+        showNow: isToday && nowP.min >= gs && nowP.min <= ge,
+        nowTop: nowP.min - gs,
+        blocks: laneOut(
+          shown
+            .filter(function (b) {
+              return b.day === di;
+            })
+            .map(blockFor),
+        ),
       };
     });
     var hours = [];
-    for (var h = 9; h <= 18; h++) hours.push({ label: self.fmt(h * 60).replace(':00', ''), top: (h - 9) * 60 - 7 });
+    for (var hh = gs / 60; hh <= ge / 60; hh++)
+      hours.push({ label: self.fmt(hh * 60).replace(':00', ''), top: hh * 60 - gs - 7 });
 
-    var listGroups = [0, 1, 2, 3, 4, 5]
+    var listGroups = dayIdx
       .map(function (di, gi) {
-        var dt = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + di);
+        var key = addDays(mon, di);
+        var dow = dowOfKey(key);
         var rows = shown
           .filter(function (b) {
             return b.day === di;
@@ -429,22 +642,22 @@ class DashboardPageLogic extends DCLogic {
               time: self.fmt(b.t),
               dur: self.durLabel(b.dur),
               cust: b.cust,
-              svc: b.svc,
-              staff: b.staff.name,
+              svc: b.serviceName,
+              staff: b.staffName,
               dot: b.staff.color,
               status: x.label,
               stBg: x.bg,
               stFg: x.fg,
-              price: self.peso(b.price),
+              price: self.money(b.total),
               deco: b.status === 'cancelled' ? 'line-through' : 'none',
               open: function () {
-                self.setState({ openId: b.id });
+                self.setState({ openId: b.id, note: b.note || '', rescheduling: false, opError: '' });
               },
             };
           });
         return {
-          label: WDL[dt.getDay()] + ', ' + dt.getDate() + ' ' + MON[dt.getMonth()],
-          isToday: s.weekOffset === 0 && di === 3,
+          label: WDL[dow] + ', ' + +key.slice(8, 10) + ' ' + MON[+key.slice(5, 7) - 1],
+          isToday: key === todayKey,
           count: rows.length + (rows.length === 1 ? ' booking' : ' bookings'),
           rows: rows,
           topLine: gi === 0 ? 'transparent' : '#EEEFF2',
@@ -456,8 +669,8 @@ class DashboardPageLogic extends DCLogic {
 
     var staffChips = [{ id: 'all', label: 'All staff' }]
       .concat(
-        ['t1', 't2', 't3'].map(function (id) {
-          return { id: id, label: STAFF[id].short, dot: STAFF[id].color };
+        s.staff.map(function (st) {
+          return { id: st.id, label: STAFF[st.id].short, dot: st.color };
         }),
       )
       .map(function (c) {
@@ -476,7 +689,7 @@ class DashboardPageLogic extends DCLogic {
         };
       });
 
-    // drawer
+    // ---- drawer
     var ob = s.openId
       ? bookings.filter(function (b) {
           return b.id === s.openId;
@@ -499,32 +712,28 @@ class DashboardPageLogic extends DCLogic {
       cancel: null,
     };
     if (ob) {
-      var odt = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + ob.day);
-      var setStatus = function (st) {
-        return function () {
-          var o = Object.assign({}, self.state.overrides);
-          o[ob.id] = st;
-          self.setState({ overrides: o });
-        };
-      };
+      var pz = partsInZone(ob.start, tz);
       var orows = [
-        ['Service', ob.svc],
-        ['With', ob.staff.name],
+        ['Service', ob.serviceName],
+        ['With', ob.staffName],
         [
           'When',
-          WDL[odt.getDay()] +
+          WDL[pz.dow] +
             ', ' +
-            odt.getDate() +
+            pz.d +
             ' ' +
-            MON[odt.getMonth()] +
-            ' 2026\n' +
+            MON[pz.m - 1] +
+            ' ' +
+            pz.y +
+            '\n' +
             self.fmt(ob.t) +
             ' – ' +
             self.fmt(ob.t + ob.dur),
         ],
-        ['Price', self.peso(ob.price)],
+        ['Price', self.money(ob.total)],
         ['Booked via', ob.source],
       ];
+      var upcoming = ob.end > Date.now();
       op = {
         stBg: ST[ob.status].bg,
         stFg: ST[ob.status].fg,
@@ -532,30 +741,81 @@ class DashboardPageLogic extends DCLogic {
         ref: ob.ref,
         cust: ob.cust,
         email: ob.email,
-        phone: ob.phone,
+        phone: ob.phone || '—',
         rows: orows.map(function (r, i) {
           return { k: r[0], v: r[1], line: i < orows.length - 1 ? '#EEEFF2' : 'transparent' };
         }),
-        answers: ob.answers,
+        answers: ob.answers.length
+          ? ob.answers.map(function (x) {
+              return { q: x.q, a: x.a || '—' };
+            })
+          : [{ q: 'Questions', a: 'No questions asked for this booking.' }],
         isPending: ob.status === 'pending',
-        isConfirmed: ob.status === 'confirmed',
-        isClosed: ['completed', 'cancelled', 'no-show'].indexOf(ob.status) >= 0,
-        confirm: setStatus('confirmed'),
-        cancel: setStatus('cancelled'),
+        isConfirmed: ob.status === 'confirmed' && upcoming,
+        isClosed:
+          ['completed', 'cancelled', 'no-show'].indexOf(ob.status) >= 0 || (ob.status === 'confirmed' && !upcoming),
+        confirm: function () {
+          self.setStatus(ob, 'confirmed');
+        },
+        cancel: function () {
+          self.setStatus(ob, 'cancelled');
+        },
+        note: s.note,
+        setNote: function (e) {
+          self.setState({ note: e.target.value });
+        },
+        saveNote: async function () {
+          if ((ob.note || '') === s.note) return;
+          try {
+            var r = await self.api('/bookings/' + ob.id, { method: 'PATCH', body: { note: self.state.note } });
+            self.replaceBooking(r.booking);
+          } catch (e) {
+            self.setState({ opError: e.message });
+          }
+        },
+        rescheduling: s.rescheduling,
+        reschedule: function () {
+          if (self.state.rescheduling) return self.setState({ rescheduling: false });
+          self.setState({ rescheduling: true });
+          self.loadSlots(ob, ob.key);
+        },
+        rsDate: s.rsDate,
+        rsTime: s.rsTime,
+        rsNote: s.rsNote,
+        rsSlots: s.rsSlots.map(function (m) {
+          return [String(m), self.fmt(m)];
+        }),
+        setRsDate: function (e) {
+          if (e.target.value) self.loadSlots(ob, e.target.value);
+        },
+        setRsTime: function (e) {
+          self.setState({ rsTime: e.target.value });
+        },
+        saveReschedule: function () {
+          self.saveReschedule(ob);
+        },
+        bookAgain: function () {
+          window.open(
+            '/' + s.liveSlug + (ob.serviceId ? '?service=' + encodeURIComponent(ob.serviceId) : ''),
+            '_blank',
+            'noopener',
+          );
+        },
+        error: s.opError,
       };
     }
 
-    // nav
+    // ---- nav
     var mk = function (key) {
       var on = s.tab === key;
       return {
         bg: on ? '#F1F1F4' : 'transparent',
         fg: on ? INK : '#4A505C',
-        icon: on ? '#5B4BDB' : '#6B7280',
+        icon: on ? ACCENT : '#6B7280',
         cur: on ? 'page' : undefined,
         go: function () {
           self.setState({ tab: key, bizMenu: false });
-          if (self.props.onTabChange) self.props.onTabChange(key);
+          if (p.onTabChange) p.onTabChange(key);
         },
       };
     };
@@ -567,20 +827,17 @@ class DashboardPageLogic extends DCLogic {
       integrations: mk('integrations'),
     };
     var PAGES = {
-      bookings: { title: 'Bookings', sub: biz.name + ' · Asia/Manila (GMT+8)' },
+      bookings: { title: 'Bookings', sub: B.name + ' · ' + tz + ' (' + gmt + ')' },
       services: {
         title: 'Services & packages',
         sub: 'What customers can book, and what you ask them before they arrive.',
       },
-      availability: {
-        title: 'Availability',
-        sub: 'When customers can book. Staff use these hours unless you customize theirs.',
-      },
+      availability: { title: 'Availability', sub: 'When customers can book. Staff use these hours.' },
       page: { title: 'Booking page & embed', sub: 'Share your link or put the booking flow on any website.' },
       integrations: { title: 'Calendar & email', sub: 'Keep Google Calendar in sync and choose who gets notified.' },
     };
 
-    // services editor
+    // ---- services editor
     var groupsSvc = [
       ['Services', false],
       ['Packages', true],
@@ -590,16 +847,18 @@ class DashboardPageLogic extends DCLogic {
           label: g[0],
           items: s.services
             .filter(function (x) {
-              return !!x.pkg === g[1];
+              return (x.cat === 'pkg') === g[1];
             })
             .map(function (x) {
               var on = x.id === s.selSvc;
               var sw0 = self.sw(x.active, function () {
+                var next = Object.assign({}, x, { active: !x.active });
                 self.updSvc(x.id, { active: !x.active });
+                self.persistSvc(next);
               });
               return {
                 name: x.name || 'Untitled',
-                meta: self.durLabel(x.dur) + ' · ' + self.peso(x.price) + ' · ' + x.staff.length + ' staff',
+                meta: self.durLabel(x.dur) + ' · ' + self.money(x.price) + ' · ' + x.staff.length + ' staff',
                 on: on,
                 bg: on ? '#F4F3FE' : 'transparent',
                 nameColor: x.active ? INK : '#5B616E',
@@ -609,7 +868,7 @@ class DashboardPageLogic extends DCLogic {
                 toggle: sw0.toggle,
                 switchLabel: (x.active ? 'Hide ' : 'Show ') + (x.name || 'service') + ' on booking page',
                 pick: function () {
-                  self.setState({ selSvc: x.id });
+                  self.setState({ selSvc: x.id, svcErr: '' });
                 },
               };
             }),
@@ -624,7 +883,33 @@ class DashboardPageLogic extends DCLogic {
         return x.id === s.selSvc;
       })[0] || null;
     var ed = {};
+    var catOptions = (B.categories || []).filter(function (c) {
+      return c[0] !== 'all';
+    });
+    if (
+      !catOptions.some(function (c) {
+        return c[0] === 'pkg';
+      })
+    )
+      catOptions = catOptions.concat([['pkg', 'Packages']]);
+    var durOptions = [15, 30, 45, 60, 75, 90, 120, 150, 180, 240, 300, 360, 480];
+    var bufferOptions = [0, 5, 10, 15, 20, 30, 45, 60];
     if (cur) {
+      if (
+        cur.cat &&
+        !catOptions.some(function (c) {
+          return c[0] === cur.cat;
+        })
+      )
+        catOptions = catOptions.concat([[cur.cat, cur.cat.charAt(0).toUpperCase() + cur.cat.slice(1)]]);
+      if (durOptions.indexOf(Number(cur.dur)) < 0)
+        durOptions = durOptions.concat([Number(cur.dur)]).sort(function (a, b) {
+          return a - b;
+        });
+      if (bufferOptions.indexOf(Number(cur.buffer)) < 0)
+        bufferOptions = bufferOptions.concat([Number(cur.buffer)]).sort(function (a, b) {
+          return a - b;
+        });
       var id = cur.id;
       var upQ = function (qid, patch) {
         self.updSvc(id, {
@@ -640,6 +925,7 @@ class DashboardPageLogic extends DCLogic {
           }),
         });
       };
+      var isPkg = cur.cat === 'pkg';
       ed = {
         name: cur.name,
         cat: cur.cat,
@@ -647,9 +933,9 @@ class DashboardPageLogic extends DCLogic {
         price: cur.price,
         buffer: cur.buffer,
         desc: cur.desc,
-        pkg: !!cur.pkg,
-        kind: cur.pkg ? 'Package' : 'Service',
-        kindLower: cur.pkg ? 'package' : 'service',
+        pkg: isPkg,
+        kind: isPkg ? 'Package' : 'Service',
+        kindLower: isPkg ? 'package' : 'service',
         visLabel: cur.active ? 'Visible on booking page' : 'Hidden',
         visBg: cur.active ? '#E7F6EE' : '#EEEFF2',
         visFg: cur.active ? '#0B6B45' : '#3F4450',
@@ -671,20 +957,20 @@ class DashboardPageLogic extends DCLogic {
         setDesc: function (e) {
           self.updSvc(id, { desc: e.target.value });
         },
-        staff: ['t1', 't2', 't3'].map(function (sid) {
-          var on = cur.staff.indexOf(sid) >= 0;
+        staff: s.staff.map(function (st) {
+          var on = cur.staff.indexOf(st.id) >= 0;
           return {
-            name: STAFF[sid].name,
-            initials: STAFF[sid].initials,
-            color: STAFF[sid].color,
+            name: st.name,
+            initials: st.initials,
+            color: st.color,
             on: on,
             bg: on ? '#F4F3FE' : '#FFFFFF',
-            border: on ? '#5B4BDB' : '#D9DBE1',
+            border: on ? ACCENT : '#D9DBE1',
             toggle: function () {
               var list = cur.staff.slice();
-              var i = list.indexOf(sid);
+              var i = list.indexOf(st.id);
               if (i >= 0) list.splice(i, 1);
-              else list.push(sid);
+              else list.push(st.id);
               self.updSvc(id, { staff: list });
             },
           };
@@ -725,6 +1011,20 @@ class DashboardPageLogic extends DCLogic {
             track: t.track,
             knob: q.req ? '16px' : '0px',
             toggleReq: t.toggle,
+            isChoice: q.type === 'select',
+            optionsText: (q.options || []).join(', '),
+            setOptions: function (e) {
+              upQ(q.id, {
+                options: e.target.value
+                  .split(',')
+                  .map(function (o) {
+                    return o.trim();
+                  })
+                  .filter(function (o, i, arr) {
+                    return o || i === arr.length - 1;
+                  }),
+              });
+            },
             setLabel: function (e) {
               upQ(q.id, { label: e.target.value });
             },
@@ -743,29 +1043,42 @@ class DashboardPageLogic extends DCLogic {
         addQ: function () {
           self.updSvc(id, {
             questions: cur.questions.concat([
-              { id: 'q' + Date.now(), label: 'New question', type: 'short', req: false },
+              { id: 'q' + Date.now(), label: 'New question', type: 'short', req: false, options: [] },
             ]),
           });
         },
-        del: function () {
-          var rest = self.state.services.filter(function (z) {
-            return z.id !== id;
-          });
-          self.setState({ services: rest, selSvc: rest.length ? rest[0].id : null });
+        del: async function () {
+          if (!window.confirm('Delete "' + cur.name + '"? Existing bookings keep their details.')) return;
+          try {
+            await self.api('/services/' + id, { method: 'DELETE' });
+            var rest = self.state.services.filter(function (z) {
+              return z.id !== id;
+            });
+            self.setState({ services: rest, selSvc: rest.length ? rest[0].id : null });
+          } catch (e) {
+            self.setState({ svcErr: e.message });
+          }
         },
-        save: function () {
-          self.setState({ saved: true });
+        save: async function () {
+          var x = self.state.services.filter(function (z) {
+            return z.id === id;
+          })[0];
+          if (x && (await self.persistSvc(x))) self.setState({ saved: true });
         },
-        savedNote: s.saved ? 'Saved' : '',
+        savedNote: s.svcErr || (s.saved ? 'Saved' : ''),
       };
     }
 
+    // ---- availability
     var hoursRows = s.hours.map(function (r, i) {
       var upd = function (patch) {
-        var hs = self.state.hours.map(function (z, j) {
-          return j === i ? Object.assign({}, z, patch) : z;
+        self.setState({
+          hours: self.state.hours.map(function (z, j) {
+            return j === i ? Object.assign({}, z, patch) : z;
+          }),
+          savedAll: false,
+          saveErr: '',
         });
-        self.setState({ hours: hs, savedAll: false });
       };
       var t = self.sw(r.on, function () {
         upd({ on: !r.on });
@@ -790,21 +1103,124 @@ class DashboardPageLogic extends DCLogic {
         },
       };
     });
+    var tzList = TIMEZONES.indexOf(s.bizTz) >= 0 ? TIMEZONES : [s.bizTz].concat(TIMEZONES);
+    var tzOptions = tzList.map(function (z) {
+      var o = offsetHours(z);
+      return [z, z + (o === null ? '' : ' (GMT' + (o >= 0 ? '+' : '') + o + ')')];
+    });
+    var saveAll = async function () {
+      var st = self.state;
+      var bad = st.hours.filter(function (h) {
+        return h.on && toMin(h.b) <= toMin(h.a);
+      })[0];
+      if (bad) {
+        window.alert(bad.d + ': closing time must be after opening time.');
+        return self.setState({ saveErr: 'bad hours' });
+      }
+      try {
+        await self.api('/hours', {
+          method: 'PUT',
+          body: {
+            hours: st.hours.map(function (h) {
+              return { dow: h.dow, isOpen: h.on, open: toMin(h.a), close: toMin(h.b) };
+            }),
+          },
+        });
+        await self.patchBusiness({
+          timezone: st.bizTz,
+          settings: {
+            interval: Number(st.interval),
+            notice: Number(st.notice),
+            advance: Number(st.advance),
+            approval: st.approval,
+          },
+        });
+        self.setState({ savedAll: true, saveErr: '' });
+      } catch (e) {
+        self.setState({ saveErr: e.message });
+        window.alert(e.message);
+      }
+    };
+    var timeOff = s.timeOff.map(function (t) {
+      var fmtD = function (k) {
+        return +k.slice(8, 10) + ' ' + MON[+k.slice(5, 7) - 1] + ' ' + k.slice(0, 4);
+      };
+      return {
+        label: t.startDate === t.endDate ? fmtD(t.startDate) : fmtD(t.startDate) + ' – ' + fmtD(t.endDate),
+        note: t.note || 'Closed',
+        remove: async function () {
+          try {
+            var r = await self.api('/time-off/' + t.id, { method: 'DELETE' });
+            self.setState({ timeOff: r.timeOff });
+          } catch (e) {
+            self.setState({ toError: e.message });
+          }
+        },
+      };
+    });
+    var staffRows = s.staff.map(function (st) {
+      var upd = function (patch) {
+        self.setState({
+          staff: self.state.staff.map(function (z) {
+            return z.id === st.id ? Object.assign({}, z, patch) : z;
+          }),
+        });
+      };
+      return {
+        name: st.name,
+        role: st.role,
+        initials: st.initials,
+        color: st.color,
+        canRemove: s.staff.length > 1,
+        setName: function (e) {
+          upd({ name: e.target.value });
+        },
+        setRole: function (e) {
+          upd({ role: e.target.value });
+        },
+        save: async function () {
+          var x = self.state.staff.filter(function (z) {
+            return z.id === st.id;
+          })[0];
+          try {
+            var r = await self.api('/staff/' + st.id, { method: 'PUT', body: { name: x.name, role: x.role } });
+            self.setState({ staff: r.staff });
+          } catch (e) {
+            window.alert(e.message);
+          }
+        },
+        remove: async function () {
+          if (!window.confirm('Remove ' + st.name + '? Their existing bookings stay on the calendar.')) return;
+          try {
+            var r = await self.api('/staff/' + st.id, { method: 'DELETE' });
+            self.setState({ staff: r.staff, services: r.services.map(toEditor) });
+          } catch (e) {
+            window.alert(e.message);
+          }
+        },
+      };
+    });
 
+    // ---- booking page & embed
+    var link = origin + '/' + s.liveSlug;
     var embedCodes = {
       inline:
-        '<iframe src="https://[domain]/' +
-        s.slug +
+        '<iframe src="' +
+        link +
         '?embed=true"\n  title="Book with ' +
-        biz.name +
-        '" loading="lazy"\n  style="width:100%;min-height:720px;border:0"></iframe>\n<script src="https://[domain]/embed.js" async></' +
+        B.name +
+        '" loading="lazy"\n  style="width:100%;min-height:720px;border:0"></iframe>\n<script src="' +
+        origin +
+        '/embed.js" async></' +
         'script>',
       popup:
         '<button data-book="' +
-        s.slug +
-        '">Book now</button>\n<script src="https://[domain]/embed.js" async></' +
+        s.liveSlug +
+        '">Book now</button>\n<script src="' +
+        origin +
+        '/embed.js" async></' +
         'script>',
-      link: 'https://[domain]/' + s.slug,
+      link: link,
     };
     var embedHelps = {
       inline: 'Shows the full booking flow inside a section of the page. embed.js resizes the frame to fit each step.',
@@ -841,34 +1257,82 @@ class DashboardPageLogic extends DCLogic {
         label: c[1] + ' accent',
         on: on,
         ring: on ? c[0] : 'transparent',
-        pick: function () {
+        pick: async function () {
+          var prev = self.state.brand;
           self.setState({ brand: c[0] });
+          try {
+            await self.patchBusiness({ accent: c[0] });
+          } catch (e) {
+            self.setState({ brand: prev });
+            window.alert(e.message);
+          }
         },
       };
     });
+    var settingSwitch = function (key) {
+      return self.sw(s[key], function () {
+        var v = !self.state[key];
+        var o = {};
+        o[key] = v;
+        self.setState(o);
+        var patch = {};
+        patch[key] = v;
+        self.saveSettings(patch);
+      });
+    };
 
-    var mailDefs = [
-      ['mNew', 'New booking alert', 'Email you the moment someone books, with their answers.'],
-      ['mConfirm', 'Customer confirmation', 'Booking details and an .ics calendar file for the customer.'],
-      ['mChanges', 'Reschedules & cancellations', 'Notify both you and the customer.'],
-      ['mDigest', 'Daily agenda', "Today's bookings at 7:00 AM."],
-      ['mReview', 'Follow-up after visit', 'Thank-you email with a review link, 2 hours after.'],
-    ];
-    var mailRows = mailDefs.map(function (m) {
-      var t = self.sw(s[m[0]], tg(m[0]));
+    // ---- Google Calendar & email
+    var g = s.google;
+    var gPatch = function (key, field) {
+      return self.sw(g[key], async function () {
+        var v = !self.state.google[key];
+        self.setState({ google: Object.assign({}, self.state.google, { [key]: v }) });
+        try {
+          var body = {};
+          body[field || key] = v;
+          var r = await self.api('/google', { method: 'PATCH', body: body });
+          self.setState({ google: r.google });
+        } catch (e) {
+          window.alert(e.message);
+        }
+      });
+    };
+    var calOptions = s.calendars.length
+      ? s.calendars.map(function (c) {
+          return [c.primary ? 'primary' : c.id, c.name + (c.primary ? ' (primary)' : '')];
+        })
+      : [[g.calendarId, g.calendarId === 'primary' ? (g.email || 'Primary') + ' (primary)' : g.calendarId]];
+    var mailRows = NOTIFY_KEYS.map(function (m) {
+      var t = self.sw(s.notify[m[0]], function () {
+        var v = !self.state.notify[m[0]];
+        self.setState({ notify: Object.assign({}, self.state.notify, { [m[0]]: v }) });
+        var n = {};
+        n[m[0]] = v;
+        self.saveSettings({ notify: n });
+      });
       return { title: m[1], sub: m[2], on: t.on, track: t.track, knob: t.knob, toggle: t.toggle };
     });
 
     var tabs = s.tab;
     return {
+      user: { name: me.user ? me.user.name : '', initials: initialsOf(me.user ? me.user.name : '') },
+      logout: function (e) {
+        e.preventDefault();
+        self.logout();
+      },
       biz: biz,
       bizList: bizList,
       bizMenu: s.bizMenu,
-      toggleBiz: tg('bizMenu'),
+      toggleBiz: function () {
+        self.setState({ bizMenu: !self.state.bizMenu });
+      },
+      addBusiness: function () {
+        navigate('/setup');
+      },
       nav: nav,
       page: PAGES[tabs] || PAGES.bookings,
-      hasPending: pendingCount > 0,
-      pendingCount: pendingCount,
+      hasPending: s.pendingCount > 0,
+      pendingCount: s.pendingCount,
       isBookings: tabs === 'bookings',
       isServices: tabs === 'services',
       isAvailability: tabs === 'availability',
@@ -877,10 +1341,15 @@ class DashboardPageLogic extends DCLogic {
       copyLink: function () {
         self.setState({ copied: 'link' });
         try {
-          navigator.clipboard.writeText('https://[domain]/' + self.state.slug);
-        } catch (e) {}
+          navigator.clipboard.writeText(link);
+        } catch (e) {
+          /* ignore */
+        }
       },
       copyLinkLabel: s.copied === 'link' ? 'Link copied' : 'Copy booking link',
+      newBooking: function () {
+        window.open('/' + s.liveSlug, '_blank', 'noopener');
+      },
       stats: stats,
       weekLabel: weekLabel,
       prevWeek: function () {
@@ -905,93 +1374,150 @@ class DashboardPageLogic extends DCLogic {
       setListView: function () {
         self.setState({ view: 'list' });
       },
-      weekEmpty: inWeek.length === 0,
-      showWeekGrid: inWeek.length > 0 && s.view === 'week',
-      showList: inWeek.length > 0 && s.view === 'list',
+      weekEmpty: !s.bLoading && bookings.length === 0,
+      showWeekGrid: (s.bLoading || bookings.length > 0) && s.view === 'week',
+      showList: !s.bLoading && bookings.length > 0 && s.view === 'list',
       week: week,
       hours: hours,
+      gridH: gridH,
+      dayCount: dayIdx.length,
       listGroups: listGroups,
       hasOpen: !!ob,
       op: op,
       closeOpen: function () {
-        self.setState({ openId: null });
+        self.setState({ openId: null, rescheduling: false });
       },
       svcGroups: groupsSvc,
       hasEdit: !!cur,
       ed: ed,
-      addService: function () {
-        var nid = 'n' + Date.now();
-        self.setState({
-          services: self.state.services.concat([
-            {
-              id: nid,
+      catOptions: catOptions,
+      durOptions: durOptions.map(function (d) {
+        return [String(d), self.durLabel(d)];
+      }),
+      bufferOptions: bufferOptions.map(function (d) {
+        return [String(d), d ? d + ' min' : 'None'];
+      }),
+      addService: async function () {
+        try {
+          var r = await self.api('/services', {
+            method: 'POST',
+            body: {
               name: 'New service',
-              cat: 'facial',
-              dur: '60',
-              price: '',
-              buffer: '0',
+              category: (catOptions[0] || ['general'])[0] === 'pkg' ? 'general' : (catOptions[0] || ['general'])[0],
+              duration: 60,
+              price: 0,
               active: false,
-              pkg: false,
-              staff: [],
-              desc: '',
-              questions: [],
+              staffIds: s.staff.map(function (x) {
+                return x.id;
+              }),
             },
-          ]),
-          selSvc: nid,
-          saved: false,
-        });
+          });
+          self.setState({
+            services: self.state.services.concat([toEditor(r.service)]),
+            selSvc: r.service.id,
+            saved: false,
+          });
+        } catch (e) {
+          self.setState({ svcErr: e.message });
+        }
       },
       hoursRows: hoursRows,
       interval: s.interval,
       notice: s.notice,
       advance: s.advance,
       bizTz: s.bizTz,
+      tzOptions: tzOptions,
       setInterval: setter('interval'),
       setNotice: setter('notice'),
       setAdvance: setter('advance'),
       setBizTz: setter('bizTz'),
-      saveAll: function () {
-        self.setState({ savedAll: true });
-      },
-      saveLabel: s.savedAll ? 'Saved' : 'Save changes',
-      timeOff: s.timeOff.map(function (t) {
-        return {
-          label: t.label,
-          note: t.note,
-          remove: function () {
-            self.setState({
-              timeOff: self.state.timeOff.filter(function (z) {
-                return z.id !== t.id;
-              }),
-            });
-          },
-        };
-      }),
+      saveAll: saveAll,
+      saveLabel: s.saveErr ? 'Try again' : s.savedAll ? 'Saved' : 'Save changes',
+      saveErr: s.saveErr,
+      timeOff: timeOff,
       addTimeOff: function () {
         self.setState({
-          timeOff: self.state.timeOff.concat([{ id: 'o' + Date.now(), label: 'Choose dates', note: 'New time off' }]),
+          toDraft: self.state.toDraft ? null : { start: todayKey, end: todayKey, note: '' },
+          toError: '',
         });
       },
-      staffRows: ['t1', 't2', 't3'].map(function (id) {
-        return {
-          name: STAFF[id].name,
-          initials: STAFF[id].initials,
-          color: STAFF[id].color,
-          note: id === 't1' ? 'Tue & Thu only · custom hours' : 'Uses business hours',
-        };
-      }),
-      sw: {
-        approval: self.sw(s.approval, tg('approval')),
-        staffStep: self.sw(s.staffStep, tg('staffStep')),
-        prices: self.sw(s.prices, tg('prices')),
-        conflicts: self.sw(s.conflicts, tg('conflicts')),
-        twoWay: self.sw(s.twoWay, tg('twoWay')),
-        details: self.sw(s.details, tg('details')),
+      toDraft: s.toDraft,
+      toError: s.toError,
+      setToStart: function (e) {
+        var v = e.target.value;
+        self.setState({
+          toDraft: Object.assign({}, self.state.toDraft, {
+            start: v,
+            end: self.state.toDraft.end < v ? v : self.state.toDraft.end,
+          }),
+        });
       },
+      setToEnd: function (e) {
+        self.setState({ toDraft: Object.assign({}, self.state.toDraft, { end: e.target.value }) });
+      },
+      setToNote: function (e) {
+        self.setState({ toDraft: Object.assign({}, self.state.toDraft, { note: e.target.value }) });
+      },
+      saveTimeOff: async function () {
+        var dft = self.state.toDraft;
+        try {
+          var r = await self.api('/time-off', {
+            method: 'POST',
+            body: { startDate: dft.start, endDate: dft.end, note: dft.note },
+          });
+          self.setState({ timeOff: r.timeOff, toDraft: null, toError: '' });
+        } catch (e) {
+          self.setState({ toError: e.message });
+        }
+      },
+      staffRows: staffRows,
+      addStaff: async function () {
+        try {
+          var r = await self.api('/staff', { method: 'POST', body: { name: 'New staff member', role: '' } });
+          self.setState({ staff: r.staff });
+        } catch (e) {
+          window.alert(e.message);
+        }
+      },
+      sw: {
+        approval: self.sw(s.approval, function () {
+          self.setState({ approval: !self.state.approval, savedAll: false });
+        }),
+        staffStep: settingSwitch('staffStep'),
+        prices: settingSwitch('prices'),
+        conflicts: gPatch('blockBusy'),
+        twoWay: gPatch('twoWay'),
+        details: gPatch('addAnswers'),
+      },
+      host: host,
+      liveSlug: s.liveSlug,
       slug: s.slug,
       setSlug: function (e) {
-        self.setState({ slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'), copied: '' });
+        self.setState({
+          slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+          copied: '',
+          slugMsg: '',
+          slugBad: false,
+        });
       },
+      saveSlug: async function () {
+        var v = self.state.slug.replace(/-+$/, '');
+        if (v === self.state.liveSlug) return;
+        try {
+          await self.patchBusiness({ slug: v });
+          self.setState({
+            liveSlug: v,
+            slug: v,
+            slugMsg: 'Saved. Your page is now at ' + host + '/' + v + '.',
+            slugBad: false,
+          });
+          if (p.onSlugChange) p.onSlugChange(v);
+        } catch (e) {
+          self.setState({ slugMsg: withHost(e.message), slugBad: true });
+        }
+      },
+      slugHelp: s.slugMsg || "Each business gets its own address. Changing it breaks links you've already shared.",
+      slugHelpColor: s.slugBad ? '#A12A20' : s.slugMsg ? '#0B6B45' : '#5B616E',
       embedTabs: embedTabs,
       embedCode: embedCodes[s.embedTab],
       embedHelp: embedHelps[s.embedTab],
@@ -999,31 +1525,72 @@ class DashboardPageLogic extends DCLogic {
         self.setState({ copied: 'code' });
         try {
           navigator.clipboard.writeText(embedCodes[self.state.embedTab]);
-        } catch (e) {}
+        } catch (e) {
+          /* ignore */
+        }
       },
       copyCodeLabel: s.copied === 'code' ? 'Copied' : 'Copy',
       swatches: swatches,
       brand: s.brand,
-      gcal: s.gcal,
-      gcalOff: !s.gcal,
-      toggleGcal: tg('gcal'),
-      gcalSub: s.gcal ? 'Connected as hello@lumenskin.example' : 'Not connected',
-      gcalPill: s.gcal ? 'Connected' : 'Off',
-      gcalPillBg: s.gcal ? '#E7F6EE' : '#EEEFF2',
-      gcalPillFg: s.gcal ? '#0B6B45' : '#3F4450',
-      gcalCal: s.gcalCal,
-      setGcalCal: setter('gcalCal'),
+      gcal: g.connected,
+      gcalOff: !g.connected,
+      gcalConfigured: g.configured,
+      toggleGcal: async function () {
+        if (!window.confirm('Disconnect Google Calendar? Bookings stop syncing.')) return;
+        try {
+          var r = await self.api('/google', { method: 'DELETE' });
+          self.setState({ google: r.google, calendars: [] });
+        } catch (e) {
+          window.alert(e.message);
+        }
+      },
+      connectGcal: function () {
+        window.location.href = '/api/auth/google/start?mode=calendar&business=' + encodeURIComponent(B.id);
+      },
+      gcalHelp: g.configured
+        ? 'Connect with Google sign-in. New bookings appear on your calendar, and its busy events block times on your booking page.'
+        : "Google Calendar sync isn't switched on for this site yet. The site owner adds Google OAuth credentials to enable it.",
+      gcalSub: g.connected ? 'Connected as ' + g.email : 'Not connected',
+      gcalPill: g.connected ? 'Connected' : 'Off',
+      gcalPillBg: g.connected ? '#E7F6EE' : '#EEEFF2',
+      gcalPillFg: g.connected ? '#0B6B45' : '#3F4450',
+      gcalCal: g.calendarId,
+      calOptions: calOptions,
+      setGcalCal: async function (e) {
+        var v = e.target.value;
+        try {
+          var r = await self.api('/google', { method: 'PATCH', body: { calendarId: v } });
+          self.setState({ google: r.google });
+        } catch (err) {
+          window.alert(err.message);
+        }
+      },
       mailRows: mailRows,
-      remWhen: s.remWhen,
-      setRemWhen: setter('remWhen'),
+      remWhen: s.notify.remind,
+      setRemWhen: function (e) {
+        var v = e.target.value;
+        self.setState({ notify: Object.assign({}, self.state.notify, { remind: v }) });
+        self.saveSettings({ notify: { remind: v } });
+      },
       ownerEmail: s.ownerEmail,
       setOwnerEmail: setter('ownerEmail'),
       fromName: s.fromName,
       setFromName: setter('fromName'),
-      sendTest: function () {
-        self.setState({ testSent: true });
+      saveEmailSettings: function () {
+        self.saveSettings({ ownerEmail: self.state.ownerEmail, fromName: self.state.fromName });
+      },
+      sendTest: async function () {
+        self.setState({ testSent: false, testError: '' });
+        try {
+          await self.saveSettings({ ownerEmail: self.state.ownerEmail, fromName: self.state.fromName });
+          await self.api('/test-email', { method: 'POST' });
+          self.setState({ testSent: true });
+        } catch (e) {
+          self.setState({ testError: e.message });
+        }
       },
       testSent: s.testSent,
+      testError: s.testError,
     };
   }
 }
@@ -1262,7 +1829,7 @@ export default class DashboardPage extends DashboardPageLogic {
                   <div style={{ height: '1px', background: '#EEEFF2', margin: '4px 0' }} />
                   <button
                     type="button"
-                    onClick={v.toggleBiz}
+                    onClick={v.addBusiness}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -1525,9 +2092,9 @@ export default class DashboardPage extends DashboardPageLogic {
             }}
           >
             <a
-              href="/lumen-skin-studio"
- target="_blank"
- rel="noopener noreferrer"
+              href={`/${v.liveSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1570,12 +2137,25 @@ export default class DashboardPage extends DashboardPageLogic {
                   fontWeight: '700',
                 }}
               >
-                AR
+                {v.user?.initials}
               </span>
-              <span style={{ display: 'flex', flexDirection: 'column', minWidth: '0' }}>
-                <span style={{ fontSize: '13px', fontWeight: '600' }}>Ana Reyes</span>
+              <span style={{ display: 'flex', flexDirection: 'column', minWidth: '0', flex: '1 1 auto' }}>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {v.user?.name}
+                </span>
                 <span style={{ fontSize: '12px', lineHeight: '16px', color: '#5B616E' }}>Owner</span>
               </span>
+              <a href="/" onClick={v.logout} style={{ fontSize: '12px', fontWeight: '600' }}>
+                Log out
+              </a>
             </div>
           </div>
         </aside>
@@ -1654,6 +2234,7 @@ export default class DashboardPage extends DashboardPageLogic {
                   </button>
                   <button
                     type="button"
+                    onClick={v.newBooking}
                     style={{
                       height: '40px',
                       padding: '0 16px',
@@ -2047,7 +2628,7 @@ export default class DashboardPage extends DashboardPageLogic {
                         <div
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: '64px repeat(6, minmax(0, 1fr))',
+                            gridTemplateColumns: `64px repeat(${v.dayCount}, minmax(0, 1fr))`,
                             borderBottom: '1px solid #E6E7EB',
                           }}
                         >
@@ -2098,11 +2679,11 @@ export default class DashboardPage extends DashboardPageLogic {
                         <div
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: '64px repeat(6, minmax(0, 1fr))',
+                            gridTemplateColumns: `64px repeat(${v.dayCount}, minmax(0, 1fr))`,
                             padding: '12px 0',
                           }}
                         >
-                          <div style={{ position: 'relative', height: '540px' }}>
+                          <div style={{ position: 'relative', height: `${v.gridH}px` }}>
                             {(v.hours || []).map((hr, hr_i) => (
                               <React.Fragment key={hr_i}>
                                 <span
@@ -2126,29 +2707,29 @@ export default class DashboardPage extends DashboardPageLogic {
                               <div
                                 style={{
                                   position: 'relative',
-                                  height: '540px',
+                                  height: `${v.gridH}px`,
                                   borderLeft: '1px solid #EEEFF2',
                                   backgroundColor: dd?.colBg,
                                   backgroundImage:
                                     'repeating-linear-gradient(to bottom, #EEEFF2 0, #EEEFF2 1px, transparent 1px, transparent 60px)',
                                 }}
                               >
-                                {dd?.hasClosed ? (
-                                  <>
+                                {(dd?.closed || []).map((cl, cl_i) => (
+                                  <React.Fragment key={cl_i}>
                                     <div
                                       aria-hidden="true"
                                       style={{
                                         position: 'absolute',
                                         left: '0',
                                         right: '0',
-                                        top: `${dd?.closedTop}px`,
-                                        height: `${dd?.closedH}px`,
+                                        top: `${cl.top}px`,
+                                        height: `${cl.h}px`,
                                         backgroundImage:
                                           'repeating-linear-gradient(135deg, #F1F2F4 0, #F1F2F4 6px, #FFFFFF 6px, #FFFFFF 12px)',
                                       }}
                                     />
-                                  </>
-                                ) : null}{' '}
+                                  </React.Fragment>
+                                ))}{' '}
                                 {(dd?.blocks || []).map((bk, bk_i) => (
                                   <React.Fragment key={bk_i}>
                                     <button
@@ -2157,8 +2738,8 @@ export default class DashboardPage extends DashboardPageLogic {
                                       aria-label={bk?.aria}
                                       style={{
                                         position: 'absolute',
-                                        left: '4px',
-                                        right: '4px',
+                                        left: `calc(${bk?.lane} * (100% - 8px) / ${bk?.lanes} + 4px)`,
+                                        width: `calc((100% - 8px) / ${bk?.lanes} - ${bk?.lanes > 1 ? 2 : 0}px)`,
                                         top: `${bk?.top}px`,
                                         height: `${bk?.h}px`,
                                         boxSizing: 'border-box',
@@ -2647,10 +3228,11 @@ export default class DashboardPage extends DashboardPageLogic {
                                 background: '#FFFFFF',
                               }}
                             >
-                              <option value="consult">Consultations</option>
-                              <option value="facial">Facials</option>
-                              <option value="laser">Laser</option>
-                              <option value="pkg">Packages</option>
+                              {(v.catOptions || []).map((o) => (
+                                <option key={o[0]} value={o[0]}>
+                                  {o[1]}
+                                </option>
+                              ))}
                             </select>
                           </label>
                           <label
@@ -2678,13 +3260,11 @@ export default class DashboardPage extends DashboardPageLogic {
                                 background: '#FFFFFF',
                               }}
                             >
-                              <option value="15">15 min</option>
-                              <option value="30">30 min</option>
-                              <option value="45">45 min</option>
-                              <option value="60">1 hr</option>
-                              <option value="75">1 hr 15 min</option>
-                              <option value="90">1 hr 30 min</option>
-                              <option value="120">2 hrs</option>
+                              {(v.durOptions || []).map((o) => (
+                                <option key={o[0]} value={o[0]}>
+                                  {o[1]}
+                                </option>
+                              ))}
                             </select>
                           </label>
                           <label
@@ -2743,11 +3323,11 @@ export default class DashboardPage extends DashboardPageLogic {
                                 background: '#FFFFFF',
                               }}
                             >
-                              <option value="0">None</option>
-                              <option value="5">5 min</option>
-                              <option value="10">10 min</option>
-                              <option value="15">15 min</option>
-                              <option value="30">30 min</option>
+                              {(v.bufferOptions || []).map((o) => (
+                                <option key={o[0]} value={o[0]}>
+                                  {o[1]}
+                                </option>
+                              ))}
                             </select>
                           </label>
                         </div>
@@ -3072,7 +3652,7 @@ export default class DashboardPage extends DashboardPageLogic {
                                   <option value="short">Short answer</option>
                                   <option value="long">Paragraph</option>
                                   <option value="yesno">Yes / No</option>
-                                  <option value="choice">Multiple choice</option>
+                                  <option value="select">Multiple choice</option>
                                 </select>
                                 <span
                                   style={{
@@ -3148,6 +3728,27 @@ export default class DashboardPage extends DashboardPageLogic {
                                     <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
                                   </svg>
                                 </button>
+                                {eq?.isChoice ? (
+                                  <input
+                                    type="text"
+                                    aria-label="Answer options"
+                                    placeholder="Answer options, separated by commas"
+                                    value={eq?.optionsText}
+                                    onChange={eq?.setOptions}
+                                    style={{
+                                      flex: '1 1 100%',
+                                      height: '40px',
+                                      border: '1px solid #D9DBE1',
+                                      borderRadius: '10px',
+                                      padding: '0 12px',
+                                      fontFamily: 'inherit',
+                                      fontSize: '13px',
+                                      color: '#0F1115',
+                                      background: '#FFFFFF',
+                                      boxSizing: 'border-box',
+                                    }}
+                                  />
+                                ) : null}
                               </div>
                             </React.Fragment>
                           ))}
@@ -3332,23 +3933,6 @@ export default class DashboardPage extends DashboardPageLogic {
                                   background: '#FFFFFF',
                                 }}
                               />
-                              <button
-                                type="button"
-                                style={{
-                                  height: '40px',
-                                  padding: '0 10px',
-                                  borderRadius: '10px',
-                                  border: '0',
-                                  background: 'transparent',
-                                  color: '#3F33B8',
-                                  fontFamily: 'inherit',
-                                  fontSize: '13px',
-                                  fontWeight: '600',
-                                  cursor: 'pointer',
-                                }}
-                              >
-                                + Add break
-                              </button>
                             </span>
                           </>
                         ) : null}
@@ -3429,6 +4013,7 @@ export default class DashboardPage extends DashboardPageLogic {
                           background: '#FFFFFF',
                         }}
                       >
+                        <option value="0">No minimum</option>
                         <option value="1">1 hour</option>
                         <option value="2">2 hours</option>
                         <option value="4">4 hours</option>
@@ -3490,10 +4075,11 @@ export default class DashboardPage extends DashboardPageLogic {
                           maxWidth: '180px',
                         }}
                       >
-                        <option value="Asia/Manila">Asia/Manila (GMT+8)</option>
-                        <option value="Australia/Sydney">Australia/Sydney</option>
-                        <option value="Australia/Brisbane">Australia/Brisbane</option>
-                        <option value="America/Los_Angeles">America/Los_Angeles</option>
+                        {(v.tzOptions || []).map((o) => (
+                          <option key={o[0]} value={o[0]}>
+                            {o[1]}
+                          </option>
+                        ))}
                       </select>
                     </label>
                     <div
@@ -3607,6 +4193,131 @@ export default class DashboardPage extends DashboardPageLogic {
                         </div>
                       </React.Fragment>
                     ))}
+                    {v.toDraft ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '8px',
+                          alignItems: 'flex-end',
+                          padding: '10px 0',
+                          borderTop: '1px solid #EEEFF2',
+                        }}
+                      >
+                        <label
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            color: '#2B2F36',
+                            flex: '1 1 140px',
+                          }}
+                        >
+                          From
+                          <input
+                            type="date"
+                            value={v.toDraft.start}
+                            onChange={v.setToStart}
+                            style={{
+                              height: '40px',
+                              border: '1px solid #D9DBE1',
+                              borderRadius: '10px',
+                              padding: '0 10px',
+                              fontFamily: 'inherit',
+                              fontSize: '14px',
+                              color: '#0F1115',
+                              background: '#FFFFFF',
+                              boxSizing: 'border-box',
+                              minWidth: '0',
+                            }}
+                          />
+                        </label>
+                        <label
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            color: '#2B2F36',
+                            flex: '1 1 140px',
+                          }}
+                        >
+                          To
+                          <input
+                            type="date"
+                            value={v.toDraft.end}
+                            onChange={v.setToEnd}
+                            style={{
+                              height: '40px',
+                              border: '1px solid #D9DBE1',
+                              borderRadius: '10px',
+                              padding: '0 10px',
+                              fontFamily: 'inherit',
+                              fontSize: '14px',
+                              color: '#0F1115',
+                              background: '#FFFFFF',
+                              boxSizing: 'border-box',
+                              minWidth: '0',
+                            }}
+                          />
+                        </label>
+                        <label
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            color: '#2B2F36',
+                            flex: '2 1 180px',
+                          }}
+                        >
+                          Note
+                          <input
+                            type="text"
+                            value={v.toDraft.note}
+                            onChange={v.setToNote}
+                            placeholder="Holiday, training…"
+                            style={{
+                              height: '40px',
+                              border: '1px solid #D9DBE1',
+                              borderRadius: '10px',
+                              padding: '0 10px',
+                              fontFamily: 'inherit',
+                              fontSize: '14px',
+                              color: '#0F1115',
+                              background: '#FFFFFF',
+                              boxSizing: 'border-box',
+                              minWidth: '0',
+                            }}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={v.saveTimeOff}
+                          style={{
+                            height: '40px',
+                            padding: '0 14px',
+                            borderRadius: '10px',
+                            border: '0',
+                            background: '#0F1115',
+                            color: '#FFFFFF',
+                            fontFamily: 'inherit',
+                            fontSize: '13px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Add
+                        </button>
+                        {v.toError ? (
+                          <span style={{ flex: '1 1 100%', fontSize: '13px', color: '#A12A20' }}>{v.toError}</span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <button
                       type="button"
                       onClick={v.addTimeOff}
@@ -3659,30 +4370,111 @@ export default class DashboardPage extends DashboardPageLogic {
                           >
                             {sr?.initials}
                           </span>
-                          <span style={{ display: 'flex', flexDirection: 'column', flex: '1 1 auto', minWidth: '0' }}>
-                            <span style={{ fontSize: '14px', fontWeight: '600' }}>{sr?.name}</span>
-                            <span style={{ fontSize: '12px', lineHeight: '16px', color: '#5B616E' }}>{sr?.note}</span>
-                          </span>
-                          <button
-                            type="button"
-                            style={{
-                              height: '36px',
-                              padding: '0 12px',
-                              borderRadius: '10px',
-                              border: '1px solid #D9DBE1',
-                              background: '#FFFFFF',
-                              color: '#0F1115',
-                              fontFamily: 'inherit',
-                              fontSize: '13px',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                            }}
+                          <span
+                            style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', flex: '1 1 auto', minWidth: '0' }}
                           >
-                            Customize
-                          </button>
+                            <input
+                              type="text"
+                              aria-label="Name"
+                              value={sr?.name}
+                              onChange={sr?.setName}
+                              onBlur={sr?.save}
+                              style={{
+                                height: '40px',
+                                border: '1px solid #D9DBE1',
+                                borderRadius: '10px',
+                                padding: '0 10px',
+                                fontFamily: 'inherit',
+                                fontSize: '14px',
+                                color: '#0F1115',
+                                background: '#FFFFFF',
+                                boxSizing: 'border-box',
+                                minWidth: '0',
+                                flex: '1 1 150px',
+                              }}
+                            />
+                            <input
+                              type="text"
+                              aria-label="Role"
+                              placeholder="Role"
+                              value={sr?.role}
+                              onChange={sr?.setRole}
+                              onBlur={sr?.save}
+                              style={{
+                                height: '40px',
+                                border: '1px solid #D9DBE1',
+                                borderRadius: '10px',
+                                padding: '0 10px',
+                                fontFamily: 'inherit',
+                                fontSize: '14px',
+                                color: '#0F1115',
+                                background: '#FFFFFF',
+                                boxSizing: 'border-box',
+                                minWidth: '0',
+                                flex: '1 1 120px',
+                              }}
+                            />
+                          </span>
+                          {sr?.canRemove ? (
+                            <button
+                              type="button"
+                              onClick={sr?.remove}
+                              aria-label={'Remove ' + sr?.name}
+                              style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '10px',
+                                border: '1px solid #E6E7EB',
+                                background: '#FFFFFF',
+                                color: '#5B616E',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                padding: '0',
+                                flex: '0 0 auto',
+                              }}
+                            >
+                              <svg
+                                aria-hidden="true"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M6 6l12 12M18 6L6 18" />
+                              </svg>
+                            </button>
+                          ) : null}
                         </div>
                       </React.Fragment>
                     ))}
+                    <span style={{ fontSize: '12px', lineHeight: '16px', color: '#5B616E' }}>
+                      Staff use your business hours. Choose who offers each service in Services & packages.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={v.addStaff}
+                      style={{
+                        alignSelf: 'flex-start',
+                        height: '36px',
+                        padding: '0 12px',
+                        borderRadius: '10px',
+                        border: '1px dashed #B8BCC6',
+                        background: '#FFFFFF',
+                        color: '#2B2F36',
+                        fontFamily: 'inherit',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      + Add staff member
+                    </button>
                   </div>
                 </div>
               </div>
@@ -3723,13 +4515,14 @@ export default class DashboardPage extends DashboardPageLogic {
                         <span
                           style={{ padding: '0 4px 0 12px', fontSize: '14px', color: '#5B616E', whiteSpace: 'nowrap' }}
                         >
-                          [domain]/
+                          {v.host}/
                         </span>
                         <input
                           type="text"
                           aria-label="Page address"
                           value={v.slug}
                           onChange={v.setSlug}
+                          onBlur={v.saveSlug}
                           style={{
                             flex: '1 1 auto',
                             minWidth: '60px',
@@ -3798,9 +4591,7 @@ export default class DashboardPage extends DashboardPageLogic {
                         </svg>
                       </a>
                     </div>
-                    <span style={{ fontSize: '12px', lineHeight: '16px', color: '#5B616E' }}>
-                      Each business gets its own slug. Use a custom domain per website in Settings.
-                    </span>
+                    <span style={{ fontSize: '12px', lineHeight: '16px', color: v.slugHelpColor }}>{v.slugHelp}</span>
                   </div>
                   <div
                     style={{
@@ -3980,26 +4771,9 @@ export default class DashboardPage extends DashboardPageLogic {
                     <span style={{ display: 'flex', flexDirection: 'column', flex: '1 1 auto' }}>
                       <span style={{ fontSize: '14px', fontWeight: '600' }}>Logo</span>
                       <span style={{ fontSize: '12px', lineHeight: '16px', color: '#5B616E' }}>
-                        PNG or SVG, square, at least 256 px
+                        Your initials in your accent colour. Image logos are coming soon.
                       </span>
                     </span>
-                    <button
-                      type="button"
-                      style={{
-                        height: '36px',
-                        padding: '0 12px',
-                        borderRadius: '10px',
-                        border: '1px solid #D9DBE1',
-                        background: '#FFFFFF',
-                        color: '#0F1115',
-                        fontFamily: 'inherit',
-                        fontSize: '13px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Upload
-                    </button>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                     <span style={{ fontSize: '14px' }}>Show the staff step</span>
@@ -4239,9 +5013,11 @@ export default class DashboardPage extends DashboardPageLogic {
                               background: '#FFFFFF',
                             }}
                           >
-                            <option value="bookings">Lumen Skin Studio — Bookings</option>
-                            <option value="primary">hello@lumenskin.example (primary)</option>
-                            <option value="new">Create a new calendar…</option>
+                            {(v.calOptions || []).map((o) => (
+                              <option key={o[0]} value={o[0]}>
+                                {o[1]}
+                              </option>
+                            ))}
                           </select>
                         </label>
                         <div
@@ -4412,29 +5188,28 @@ export default class DashboardPage extends DashboardPageLogic {
                   {v.gcalOff ? (
                     <>
                       <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <span style={{ fontSize: '14px', color: '#4A505C' }}>
-                          Connect once per staff member. New bookings appear on their calendar, and their busy events
-                          block slots on your booking page.
-                        </span>
-                        <button
-                          type="button"
-                          onClick={v.toggleGcal}
-                          style={{
-                            alignSelf: 'flex-start',
-                            height: '44px',
-                            padding: '0 18px',
-                            borderRadius: '10px',
-                            border: '0',
-                            background: '#0F1115',
-                            color: '#FFFFFF',
-                            fontFamily: 'inherit',
-                            fontSize: '14px',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Connect Google Calendar
-                        </button>
+                        <span style={{ fontSize: '14px', color: '#4A505C' }}>{v.gcalHelp}</span>
+                        {v.gcalConfigured ? (
+                          <button
+                            type="button"
+                            onClick={v.connectGcal}
+                            style={{
+                              alignSelf: 'flex-start',
+                              height: '44px',
+                              padding: '0 18px',
+                              borderRadius: '10px',
+                              border: '0',
+                              background: '#0F1115',
+                              color: '#FFFFFF',
+                              fontFamily: 'inherit',
+                              fontSize: '14px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Connect Google Calendar
+                          </button>
+                        ) : null}
                       </div>
                     </>
                   ) : null}
@@ -4602,6 +5377,7 @@ export default class DashboardPage extends DashboardPageLogic {
                           type="email"
                           value={v.ownerEmail}
                           onChange={v.setOwnerEmail}
+                          onBlur={v.saveEmailSettings}
                           style={{
                             height: '44px',
                             border: '1px solid #D9DBE1',
@@ -4631,6 +5407,7 @@ export default class DashboardPage extends DashboardPageLogic {
                           type="text"
                           value={v.fromName}
                           onChange={v.setFromName}
+                          onBlur={v.saveEmailSettings}
                           style={{
                             height: '44px',
                             border: '1px solid #D9DBE1',
@@ -4680,6 +5457,11 @@ export default class DashboardPage extends DashboardPageLogic {
                             {v.ownerEmail}
                           </span>
                         </>
+                      ) : null}
+                      {v.testError ? (
+                        <span role="alert" style={{ fontSize: '13px', fontWeight: '600', color: '#A12A20' }}>
+                          {v.testError}
+                        </span>
                       ) : null}
                     </div>
                   </div>
@@ -4976,6 +5758,9 @@ export default class DashboardPage extends DashboardPageLogic {
                   <textarea
                     rows="3"
                     placeholder="Only your team sees this"
+                    value={v.op?.note}
+                    onChange={v.op?.setNote}
+                    onBlur={v.op?.saveNote}
                     style={{
                       border: '1px solid #D9DBE1',
                       borderRadius: '10px',
@@ -4995,6 +5780,114 @@ export default class DashboardPage extends DashboardPageLogic {
                   />
                 </label>
               </div>
+              {v.op?.rescheduling ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                    alignItems: 'flex-end',
+                    padding: '14px 20px',
+                    borderTop: '1px solid #EEEFF2',
+                  }}
+                >
+                  <label
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#2B2F36',
+                      flex: '1 1 150px',
+                    }}
+                  >
+                    New date
+                    <input
+                      type="date"
+                      value={v.op?.rsDate}
+                      onChange={v.op?.setRsDate}
+                      style={{
+                        height: '40px',
+                        border: '1px solid #D9DBE1',
+                        borderRadius: '10px',
+                        padding: '0 10px',
+                        fontFamily: 'inherit',
+                        fontSize: '14px',
+                        color: '#0F1115',
+                        background: '#FFFFFF',
+                        boxSizing: 'border-box',
+                        minWidth: '0',
+                      }}
+                    />
+                  </label>
+                  <label
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#2B2F36',
+                      flex: '1 1 150px',
+                    }}
+                  >
+                    Start time
+                    <select
+                      value={v.op?.rsTime}
+                      onChange={v.op?.setRsTime}
+                      style={{
+                        height: '40px',
+                        border: '1px solid #D9DBE1',
+                        borderRadius: '10px',
+                        padding: '0 10px',
+                        fontFamily: 'inherit',
+                        fontSize: '14px',
+                        color: '#0F1115',
+                        background: '#FFFFFF',
+                        boxSizing: 'border-box',
+                        minWidth: '0',
+                      }}
+                    >
+                      {(v.op?.rsSlots || []).map((o) => (
+                        <option key={o[0]} value={o[0]}>
+                          {o[1]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={v.op?.saveReschedule}
+                    disabled={!v.op?.rsTime}
+                    style={{
+                      height: '40px',
+                      padding: '0 14px',
+                      borderRadius: '10px',
+                      border: '0',
+                      background: '#0F1115',
+                      color: '#FFFFFF',
+                      fontFamily: 'inherit',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Move booking
+                  </button>
+                  {v.op?.rsNote ? (
+                    <span style={{ flex: '1 1 100%', fontSize: '13px', color: '#5B616E' }}>{v.op?.rsNote}</span>
+                  ) : null}
+                </div>
+              ) : null}
+              {v.op?.error ? (
+                <div
+                  role="alert"
+                  style={{ padding: '10px 20px', fontSize: '13px', color: '#A12A20', borderTop: '1px solid #EEEFF2' }}
+                >
+                  {v.op?.error}
+                </div>
+              ) : null}
               <div
                 style={{
                   display: 'flex',
@@ -5048,6 +5941,7 @@ export default class DashboardPage extends DashboardPageLogic {
                   <>
                     <button
                       type="button"
+                      onClick={v.op?.reschedule}
                       style={{
                         flex: '1 1 auto',
                         height: '44px',
@@ -5087,6 +5981,7 @@ export default class DashboardPage extends DashboardPageLogic {
                   <>
                     <button
                       type="button"
+                      onClick={v.op?.bookAgain}
                       style={{
                         flex: '1 1 auto',
                         height: '44px',

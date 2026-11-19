@@ -1,89 +1,127 @@
 # Digital Services Master — Booking
 
-A multi-industry, multi-website booking system: marketing site, sign-up and setup, an owner dashboard, and a public booking page per business that can also be embedded on any website. The frontend is built from the Claude Design handoff in [`design/handoff/`](design/handoff/README.md) and deploys to **Cloudflare Workers** as static assets.
+A multi-industry, multi-website booking system. Business owners sign up, set up a booking page, manage services, staff, hours and bookings in a dashboard, and share a link or embed the booking flow on any website. Customers book in four steps and get a confirmation email with a calendar file.
 
-## Quick start
+The whole app runs on **Cloudflare Workers**: a Worker serves the JSON API and the built React app, with a **D1** (SQLite) database. The UI is built from the Claude Design handoff in [`design/handoff/`](design/handoff/README.md).
+
+## Quick start (local)
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173
-npm run build        # production build in dist/
-npm run cf:dev       # build, then serve dist/ with wrangler (Workers runtime)
-npm run deploy       # build, then deploy to Cloudflare Workers
+npm run db:migrate:local     # create the local D1 database
+npm run db:seed:local        # optional: the three demo businesses from the design
+npm run cf:dev               # build + run the Worker at http://localhost:8787
 ```
 
-`npm run deploy` needs a Cloudflare account (`npx wrangler login` once). The app runs on the Worker's free `workers.dev` address until a custom domain is attached.
+For frontend work with hot reload, run `npx wrangler dev` in one terminal and `npm run dev` in another (Vite on :5173 proxies `/api` to the Worker).
 
-## Routes
+```bash
+npm test                     # availability and time-zone unit tests
+```
 
-| Route | Screen |
-|---|---|
-| `/` | Marketing homepage |
-| `/signup`, `/login` | Create account, log in (validation and error states) |
-| `/setup` | Two-step business setup (name + booking URL, template + region) |
-| `/dashboard`, `/dashboard/{bookings,services,availability,booking-page,integrations}` | Owner dashboard; each tab has its own URL |
-| `/[business-slug]` | Public booking page (service → staff → date & time → details → confirmation) |
-| `/[business-slug]?embed=true` | Embed view for iframes. Deep links: `&service=[id]`, `&staff=[id]`, `&hide_staff=1` |
-| `/embed.js` | Host-site script: auto-resizes inline iframes, powers `<button data-book="[slug]">` popups |
-| `/embed-demo` | The booking page embedded in an example client website |
-| `/styleguide` | Design tokens and component states |
+## Deploy to Cloudflare
 
-Demo business slugs: `lumen-skin-studio`, `brightside-dental`, `snapshot-booth-co`.
+1. Log in and create the database:
+   ```bash
+   npx wrangler login
+   ```
+   ```bash
+   npx wrangler d1 create dsm-booking
+   ```
+   Copy the printed `database_id` into `wrangler.jsonc`.
+2. Optional settings (see the table below): set `EMAIL_FROM` and `GOOGLE_CLIENT_ID` in `wrangler.jsonc`, then add the secrets:
+   ```bash
+   npx wrangler secret put RESEND_API_KEY
+   ```
+   ```bash
+   npx wrangler secret put GOOGLE_CLIENT_SECRET
+   ```
+3. Deploy (builds, applies migrations to the remote database, deploys the Worker):
+   ```bash
+   npm run deploy
+   ```
+4. Optional: load the demo businesses so the homepage's "Try the demo booking page" works:
+   ```bash
+   npm run db:seed:remote
+   ```
+
+The app works without email or Google configured: emails are logged instead of sent, and the Google sign-in button and Calendar connect button are hidden.
+
+### Configuration
+
+| Name | Kind | Purpose |
+|---|---|---|
+| `DB` | D1 binding | The database (`wrangler.jsonc`) |
+| `EMAIL_FROM` | var | Verified sender address for [Resend](https://resend.com), e.g. `bookings@yourdomain.com`. Emails show the business name as the sender name; replies go to the owner. |
+| `RESEND_API_KEY` | secret | Resend API key |
+| `GOOGLE_CLIENT_ID` | var | Google OAuth client (Google sign-in and Google Calendar) |
+| `GOOGLE_CLIENT_SECRET` | secret | Google OAuth client secret. Add `https://<your host>/api/auth/google/callback` as an authorized redirect URI and enable the Google Calendar API. |
+
+For local secrets, copy `.dev.vars.example` to `.dev.vars`.
+
+A cron trigger runs every 15 minutes (`worker/cron.js`). It sends reminders, the 7:00 AM daily agenda and follow-up emails, marks past bookings completed, and runs the two-way Google Calendar sync.
+
+## What it does
+
+**Owners**
+- Sign up and log in with email and password (PBKDF2-hashed), or with Google. Sessions are HttpOnly cookies. Failed logins are rate-limited, and passwords can be reset by email.
+- Two-step setup: the business name and booking address are checked against the database as you type (reserved words, taken addresses with suggestions). Then choose a template (clinic, salon, events, or blank), currency and time zone. The template creates sample services, intake questions, default hours and a staff member.
+- Dashboard (each tab has its own URL):
+  - **Bookings**: real week calendar and list, with week navigation, staff filter, overlapping bookings in lanes, and closed hours hatched. The booking drawer has confirm, decline, cancel, reschedule (shows only free times), private notes and "book again".
+  - **Services & packages**: create, edit, hide and delete services and packages, with add-ons, staff assignment and per-service intake questions (short answer, paragraph, yes/no, multiple choice with options).
+  - **Availability**: weekly hours, start-time interval, minimum notice, booking window, time zone, manual approval, time off with dates, and adding, renaming or removing staff.
+  - **Booking page & embed**: change the address, copy the link and embed code (inline iframe, popup button, link), accent colour, and the show-staff-step and show-prices settings.
+  - **Calendar & email**: connect Google Calendar (target calendar, block busy times, two-way sync, add answers to events), email notification toggles, reminder timing, owner alert address, sender name, and a test email.
+- Several businesses per account (business switcher, "Add a business or website").
+
+**Customers**
+- `/[business-slug]`: service, staff, date and time, details, confirmation. Times come from the server, which checks opening hours, duration plus buffer, minimum notice, the booking window, time off, other bookings and Google busy times.
+- Times are shown in the visitor's time zone, with the business's local time when the two differ.
+- Bookings are re-checked on submit. Two customers can't take the same slot: the database enforces it, and the second person is sent back to pick another time.
+- Confirmation email with an `.ics` file, plus "Add to Google Calendar" and `.ics` download links. If the owner turned on manual approval, the booking is shown as pending.
+- Embed with `?embed=true` (deep links `&service=`, `&staff=`, `&hide_staff=1`). `/embed.js` resizes inline iframes and powers `<button data-book="[slug]">` popups.
 
 ## Project layout
 
 ```
-design/handoff/        Claude Design handoff pack, kept as delivered (specs, flows, tokens, sample data, canvas boards)
-design/tools/          Script that produced the first port of the canvas boards into src/pages
-public/                Static files served as-is: embed.js, _headers, favicon, robots.txt
-src/App.jsx            Route table, page titles, embed height reporting
-src/pages/             One component per design board (see below), plus NotFoundPage
-src/lib/               Router, time-zone clock, calendar links (.ics / Google), reserved slugs, demo businesses
-src/styles/tokens.css  Design tokens from the handoff (fonts are loaded in index.html)
-src/styles/base.css    Document defaults, per-page link colours, focus rings
-src/data/              Demo businesses JSON from the handoff, for seeding the backend
-wrangler.jsonc         Workers config: serves dist/ with single-page-app fallback
+worker/index.js         Worker entry: /api routes, static assets, cron
+worker/routes/          auth.js (accounts, sessions, Google, password reset), owner.js (dashboard API), public.js (booking page API)
+worker/lib/             availability, time zones, auth, email (Resend + .ics), Google OAuth/Calendar, side effects, defaults/templates
+worker/cron.js          Reminders, daily agenda, follow-ups, completion, two-way calendar sync
+migrations/             D1 schema
+scripts/seed-demo.mjs   SQL for the three demo businesses (from src/data/demo-businesses.json)
+test/                   Unit tests (node --test)
+src/App.jsx             Routes, auth guards, data loading
+src/pages/              One page per design board, plus 404 and password reset
+src/components/Shell.jsx  Auth-card shell for screens not in the handoff (404, reset, loading, errors)
+src/lib/                API client, router, clock and time-zone helpers, calendar links, reserved slugs
+public/                 embed.js, _headers, favicon, robots.txt
+design/handoff/         The design handoff pack as delivered
 ```
 
-### How the pages relate to the design
+The pages in `src/pages/` started as direct ports of the canvas boards (markup, inline styles and copy kept as designed). They now load from and save to the API. A few screens the handoff didn't draw (password reset, 404, loading) use the auth card's look, and the dashboard gained small forms in the same style for time-off dates, staff, answer options and rescheduling.
 
-Each file in `src/pages/` is a direct port of one canvas board in `design/handoff/canvas-source/`:
+## API
 
-| Board | Page |
+All JSON under `/api`. Owner endpoints need the session cookie; writes from other origins are rejected.
+
+| | |
 |---|---|
-| `Home.dc.html` (+ `HomePhone`) | `HomePage.jsx` |
-| `Signup.dc.html` (+ `Login`, phone variants) | `AuthPage.jsx` (`mode="Sign up"` / `"Log in"`) |
-| `Onboarding.dc.html` (+ phone) | `SetupPage.jsx` |
-| `Main.dc.html` (+ `BookingPhone`) | `BookingPage.jsx` |
-| `Dashboard.dc.html` | `DashboardPage.jsx` |
-| `Embed.dc.html` | `EmbedDemoPage.jsx` |
-| `Tokens.dc.html` | `StyleguidePage.jsx` |
+| `POST /auth/signup`, `/auth/login`, `/auth/logout`, `GET /auth/me` | Accounts and sessions |
+| `POST /auth/forgot`, `/auth/reset` | Password reset |
+| `GET /auth/google/start?mode=login\|calendar`, `/auth/google/callback` | Google OAuth |
+| `GET /slugs/:slug` | Address availability |
+| `POST /businesses`, `GET\|PATCH /businesses/:id` | Business setup and settings |
+| `/businesses/:id/services[/:sid]`, `/staff[/:sid]`, `/hours`, `/time-off[/:tid]` | Dashboard editing |
+| `GET /businesses/:id/bookings?from&to`, `PATCH /bookings/:bid`, `GET /bookings/:bid/slots`, `POST /bookings/:bid/reschedule` | Bookings |
+| `POST /businesses/:id/test-email`, `PATCH\|DELETE /businesses/:id/google`, `GET /businesses/:id/google/calendars` | Email and Google Calendar |
+| `GET /public/:slug`, `GET /public/:slug/availability?service=`, `POST /public/:slug/bookings` | Public booking page |
 
-Markup, inline styles and copy are carried over as designed, and each page keeps its board's own logic class (the design canvas used a React-compatible component model). The phone boards are not separate pages: every page measures its own width and switches to the phone layout below the design's breakpoints (760px for the booking page, homepage and dashboard; 600px for auth and setup).
+## Not built yet
 
-Changes made on top of the boards:
-
-- **Booking page**: availability is computed from the real current date and time in the business's time zone (the prototype was pinned to 19 Nov 2026), with the 2-hour minimum notice. The slot time zone defaults to the visitor's browser zone. "Add to Google Calendar" and "Apple / Outlook (.ics)" produce working links. Embed deep links are supported.
-- **Dashboard**: tabs map to `/dashboard/*` sub-routes and follow the browser back button; "View booking page", "Open", and the customer email and phone links work.
-- **Setup**: reserved slugs come from the single list in `src/lib/reserved.js`; the time zone defaults to the browser's zone.
-- **Embed demo**: shows the real `?embed=true` page in an iframe, resized by `/embed.js`.
-- **404 page** for unknown slugs, built from the auth page shell.
-
-`design/tools/convert-canvas.mjs` generated the first version of these pages. They have been edited since, so don't re-run it over `src/pages/`. If the design changes, convert the board to a scratch folder and merge the diff by hand.
-
-## Not built yet (needs the backend)
-
-The handoff covers the frontend only. These parts still run on demo data in the browser:
-
-- Accounts and sessions. Sign-up and log-in validate on the client and then go to `/setup` or `/dashboard`. The login error banner and the duplicate-email message (`taken@example.com`) are demo states.
-- Slug availability in setup checks a fixed demo list instead of the database.
-- Businesses, services, staff, bookings and dashboard edits live in component state. The dashboard week shows the sample week of 16–21 Nov 2026.
-- Confirmation and alert emails, Google Calendar OAuth and sync, and payments.
-
-Seed data for the API is in `src/data/demo-businesses.json`. Routes, validation messages and booking rules are specified in `design/handoff/flows-and-rules.md`.
-
-## Open decisions (from the handoff)
-
-- Domain: shown as `[domain]` throughout the UI.
-- Pro plan price (`[Price]`) and the final Free vs Pro split.
-- Email provider for Workers, and whether customers can reschedule or cancel from the confirmation email.
+- Customers can't reschedule or cancel themselves yet (an open decision in the handoff). The confirmation tells them to reply to the email, which reaches the business.
+- Logo uploads (needs file storage such as R2). Booking pages show the business initials in the accent colour.
+- Breaks within a day and per-staff custom hours. Staff use the business hours.
+- Online deposits and payments, SMS reminders, Outlook calendar and webhooks (the dashboard's "Later" strip).
+- Plan limits and billing for Free vs Pro (the price is still an open decision). Every account currently has Pro features.
+- Two-way Google sync checks upcoming events every 15 minutes rather than using push notifications.
