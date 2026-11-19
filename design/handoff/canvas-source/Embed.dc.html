@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Embed view inside a client website</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#3A3A3A}a:hover{color:#111111}
+</style>
+</helmet>
+<div style="width: 1120px; height: 900px; box-sizing: border-box; background: #F3EFE8; font-family: Georgia, 'Times New Roman', serif; color: #2A2622; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="height: 40px; flex: 0 0 auto; background: #E4DED4; display: flex; align-items: center; padding: 0 16px; gap: 12px">
+    <span style="flex: 0 1 460px; height: 26px; border-radius: 999px; background: #F8F5F0; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-family: Inter, system-ui, sans-serif; font-size: 12px; color: #4A4540">
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path></svg>
+      yourclinicwebsite.com/book
+    </span>
+    <span style="font-family: Inter, system-ui, sans-serif; font-size: 12px; color: #5C564F">Example host site, not part of the app</span>
+  </div>
+
+  <header style="height: 72px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; padding: 0 48px; border-bottom: 1px solid #E1DACE">
+    <span style="font-size: 22px; font-style: italic; letter-spacing: 0.01em">Your Clinic Website</span>
+    <nav aria-label="Host site" style="display: flex; align-items: center; gap: 28px; font-family: Inter, system-ui, sans-serif; font-size: 14px">
+      <a href="#" style="text-decoration: none">Treatments</a>
+      <a href="#" style="text-decoration: none">About</a>
+      <a href="#" style="text-decoration: none">Journal</a>
+      <a href="#" style="text-decoration: none; background: #2A2622; color: #F8F5F0; padding: 10px 18px; border-radius: 999px">Book now</a>
+    </nav>
+  </header>
+
+  <div style="flex: 1 1 auto; display: flex; gap: 48px; padding: 28px 48px 0; min-height: 0">
+    <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 18px; padding-top: 12px">
+      <span style="font-family: Inter, system-ui, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6B5F52">Book online</span>
+      <h1 style="margin: 0; font-size: 44px; line-height: 50px; font-weight: 400; letter-spacing: -0.01em">Reserve your next treatment in under a minute.</h1>
+      <p style="margin: 0; font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 24px; color: #4A4540; max-width: 460px">This left side is the client's own website. The panel on the right is the booking app running in an iframe with <strong>?embed=true</strong>: no app header, footer or grey page background, a compact stepper, and the summary moved into a sticky bottom bar so it works at any width.</p>
+
+      <div style="background: #1B1D22; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; max-width: 500px">
+        <div style="display: flex; align-items: center; justify-content: space-between">
+          <span style="font-family: Inter, system-ui, sans-serif; font-size: 12px; font-weight: 600; color: #B8BCC6">Embed snippet (from Dashboard › Booking page)</span>
+          <span style="font-family: Inter, system-ui, sans-serif; font-size: 12px; font-weight: 600; color: #E6E7EB; border: 1px solid #3A3D45; border-radius: 8px; padding: 4px 10px">Copy</span>
+        </div>
+        <code style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12.5px; line-height: 20px; color: #E6E7EB; white-space: pre-wrap; word-break: break-all">&lt;iframe src="https://[domain]/lumen-skin-studio?embed=true"
+  title="Book an appointment" loading="lazy"
+  style="width:100%;min-height:720px;border:0"&gt;&lt;/iframe&gt;
+&lt;script src="https://[domain]/embed.js" async&gt;&lt;/script&gt;</code>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 20px; color: #3A3530; max-width: 500px">
+        <span style="display: flex; gap: 10px; align-items: flex-start"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2F6B4F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto; margin-top: 1px"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>embed.js listens for height messages from the iframe and resizes it, so there is no inner scrollbar on the live site.</span>
+        <span style="display: flex; gap: 10px; align-items: flex-start"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2F6B4F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto; margin-top: 1px"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>The widget uses the business's accent colour and logo from the dashboard, nothing from the host page's CSS.</span>
+        <span style="display: flex; gap: 10px; align-items: flex-start"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2F6B4F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto; margin-top: 1px"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Optional params: &amp;service=, &amp;staff=, &amp;hide_staff=1 to deep-link straight into a step.</span>
+      </div>
+    </div>
+
+    <div style="flex: 0 0 460px; display: flex; flex-direction: column; gap: 8px; min-height: 0">
+      <span style="align-self: flex-start; font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11.5px; color: #4A4540; background: #FFFFFF; border: 1px dashed #B9AE9F; border-radius: 6px; padding: 3px 8px">iframe · /lumen-skin-studio?embed=true</span>
+      <div style="width: 460px; height: 712px; overflow-y: auto; overflow-x: hidden; background: #FFFFFF; border: 1px solid #E1DACE; border-radius: 16px 16px 0 0; box-shadow: 0 12px 40px rgba(42,38,34,0.12); position: relative">
+        <dc-import name="Main" embed="{{ true }}" phone="{{ true }}" minh="712px" demo="{{demo}}" accent="{{accent}}" hint-size="460px,712px"></dc-import>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"demo":{"editor":"enum","options":["Aesthetic clinic","Dental clinic","Photo booth / events"],"default":"Aesthetic clinic","section":"Demo"},"accent":{"editor":"color","options":["#5B4BDB","#0F766E","#1D4ED8","#B4235A"],"default":"#5B4BDB","section":"Brand"},"$preview":{"width":1120,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      demo: this.props.demo ?? 'Aesthetic clinic',
+      accent: this.props.accent ?? '#5B4BDB'
+    };
+  }
+}
+</script>
+</body>
+</html>
