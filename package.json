@@ -10,8 +10,6 @@
     "preview": "vite preview",
     "test": "node --test test/*.test.js",
     "db:migrate:local": "wrangler d1 migrations apply dsm-booking --local",
-    "db:seed:local": "node scripts/seed-demo.mjs > .wrangler/seed.sql && wrangler d1 execute dsm-booking --local --file=.wrangler/seed.sql",
-    "db:seed:remote": "node scripts/seed-demo.mjs > .wrangler/seed.sql && wrangler d1 execute dsm-booking --remote --file=.wrangler/seed.sql",
     "cf:dev": "npm run build && npm run db:migrate:local && wrangler dev",
     "deploy": "npm run build && wrangler deploy"
   },

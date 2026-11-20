@@ -31,7 +31,7 @@ npm run deploy
 
 There's no database to create by hand:
 - On the first deploy, Wrangler creates the `dsm-booking` D1 database (there's no `database_id` in `wrangler.jsonc` on purpose) and reuses it on every deploy after that.
-- The Worker applies the SQL files in `migrations/` itself on its first request. That includes `0002_demo_businesses.sql`, so the homepage's "Try the demo booking page" works straight away.
+- The Worker applies the SQL files in `migrations/` itself on its first request. A new database starts empty: no businesses, staff, services or bookings until owners sign up. (`0003_remove_demo_data.sql` deletes the demo businesses an earlier version seeded, if they exist.)
 
 Applied migrations are recorded in the same `d1_migrations` table that `wrangler d1 migrations apply` uses, so running that command as well is harmless.
 
@@ -86,8 +86,7 @@ worker/index.js         Worker entry: /api routes, static assets, cron
 worker/routes/          auth.js (accounts, sessions, Google, password reset), owner.js (dashboard API), public.js (booking page API)
 worker/lib/             availability, time zones, auth, email (Resend + .ics), Google OAuth/Calendar, side effects, defaults/templates
 worker/cron.js          Reminders, daily agenda, follow-ups, completion, two-way calendar sync
-migrations/             D1 schema and demo businesses, applied by the Worker (worker/lib/migrate.js)
-scripts/seed-demo.mjs   Regenerates/resets the demo businesses (from src/data/demo-businesses.json)
+migrations/             D1 schema, applied by the Worker (worker/lib/migrate.js)
 test/                   Unit tests (node --test)
 src/App.jsx             Routes, auth guards, data loading
 src/pages/              One page per design board, plus 404 and password reset

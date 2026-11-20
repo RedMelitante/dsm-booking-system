@@ -7,7 +7,6 @@ import AuthPage from './pages/AuthPage.jsx';
 import SetupPage from './pages/SetupPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import BookingPage from './pages/BookingPage.jsx';
-import EmbedDemoPage from './pages/EmbedDemoPage.jsx';
 import StyleguidePage from './pages/StyleguidePage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
@@ -51,7 +50,6 @@ function resolve(pathname, search) {
     const tab = parts[1] ? DASH_ROUTES[parts[1]] : 'bookings';
     if (tab) return { page: 'dashboard', tab, title: DASH_TITLES[tab] + ' · ' + BRAND };
   }
-  if (path === '/embed-demo') return { page: 'embed-demo', title: 'Embed demo · ' + BRAND };
   if (path === '/styleguide') return { page: 'styleguide', title: 'Design tokens & components · ' + BRAND };
   if (parts.length === 1 && !isReservedSlug(parts[0]) && /^[a-z0-9-]{3,40}$/i.test(parts[0])) {
     const embed = q.get('embed') === 'true';
@@ -177,7 +175,7 @@ function Booking({ route, locKey }) {
     if (r.state === 'ok') document.title = 'Book with ' + r.data.biz.name;
   }, [r.state, r.data]);
   if (r.state === 'error') {
-    if (r.error.status === 404) return <NotFoundPage path={'/' + route.slug} />;
+    if (r.error.status === 404) return <NotFoundPage path={'/' + route.slug} business />;
     return <ErrorScreen message={r.error.message} onRetry={r.reload} />;
   }
   if (r.state !== 'ok') return route.embed ? null : <LoadingScreen />;
@@ -223,8 +221,6 @@ export default function App() {
     case 'booking':
     case 'booking-embed':
       return <Booking route={r} locKey={key} />;
-    case 'embed-demo':
-      return <EmbedDemoPage />;
     case 'styleguide':
       return <StyleguidePage />;
     default:
