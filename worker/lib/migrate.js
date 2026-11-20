@@ -3,11 +3,12 @@
 // in the same `d1_migrations` table `wrangler d1 migrations apply` uses, so the
 // two approaches can be mixed.
 import m0001 from '../../migrations/0001_init.sql';
-import m0002 from '../../migrations/0002_demo_businesses.sql';
+import m0003 from '../../migrations/0003_remove_demo_data.sql';
 
 const MIGRATIONS = [
   ['0001_init.sql', m0001],
-  ['0002_demo_businesses.sql', m0002],
+  // 0002 (demo businesses) was removed; 0003 deletes its rows where it already ran.
+  ['0003_remove_demo_data.sql', m0003],
 ];
 
 // Strips `--` comments and splits on statement-ending semicolons.

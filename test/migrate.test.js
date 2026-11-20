@@ -13,6 +13,7 @@ test('migration files split into whole statements', () => {
   assert.ok(init.length > 15);
   for (const s of init) assert.match(s, /^(CREATE|INSERT|DELETE)/);
   assert.ok(init.some((s) => s.startsWith('CREATE UNIQUE INDEX bookings_no_double') && s.includes("WHERE status IN ('pending', 'confirmed')")));
-  const demo = splitSql(fs.readFileSync(new URL('../migrations/0002_demo_businesses.sql', import.meta.url), 'utf8'));
-  assert.equal(demo.filter((s) => s.startsWith('INSERT INTO businesses')).length, 3);
+  const cleanup = splitSql(fs.readFileSync(new URL('../migrations/0003_remove_demo_data.sql', import.meta.url), 'utf8'));
+  assert.ok(cleanup.length >= 10 && cleanup.every((s) => s.startsWith('DELETE FROM')));
+  assert.ok(!fs.existsSync(new URL('../migrations/0002_demo_businesses.sql', import.meta.url)), 'no seed migration');
 });

@@ -81,25 +81,43 @@ class HomePageLogic extends DCLogic {
     var narrow = !!p.phone || (s.w > 0 && s.w < 760);
 
     // ---- hero mini booking card
+    // Generic sample business: works for any industry.
     var SV = [
-      { id: 's1', name: 'Hydrating signature facial', meta: '60 min', price: 2800 },
-      { id: 's2', name: 'Skin consultation', meta: '30 min', price: 0 },
-      { id: 's3', name: 'Pico laser toning', meta: '45 min', price: 4500 },
+      { id: 's1', name: 'Standard Session', meta: '60 min', price: 80 },
+      { id: 's2', name: 'Initial Consultation', meta: '30 min', price: 0 },
+      { id: 's3', name: 'Extended Package', meta: '90 min', price: 120 },
     ];
     var money = function (n) {
-      return n ? '₱' + n.toLocaleString('en-US') : 'Free';
+      return n ? '$' + n.toLocaleString('en-US') : 'Free';
     };
     var svc =
       SV.filter(function (x) {
         return x.id === s.svc;
       })[0] || SV[0];
-    var DAYS = [
-      ['Fri', '20', 'Friday'],
-      ['Sat', '21', 'Saturday'],
-      ['Mon', '23', 'Monday'],
-      ['Tue', '24', 'Tuesday'],
-      ['Wed', '25', 'Wednesday'],
+    // The next five days from tomorrow, skipping Sundays.
+    var WDS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var WDL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    var MONL = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
+    var DAYS = [];
+    for (var di = 1; DAYS.length < 5; di++) {
+      var dt = new Date();
+      dt.setHours(12, 0, 0, 0);
+      dt.setDate(dt.getDate() + di);
+      if (dt.getDay() !== 0) DAYS.push([WDS[dt.getDay()], String(dt.getDate()), WDL[dt.getDay()], MONL[dt.getMonth()]]);
+    }
     var ALL = ['9:30 AM', '10:00 AM', '11:30 AM', '1:00 PM', '2:30 PM', '4:00 PM'];
     var KEEP = [
       [0, 1, 2, 3, 4, 5],
@@ -155,7 +173,7 @@ class HomePageLogic extends DCLogic {
       }),
       total: money(svc.price),
       sub: s.slot
-        ? svc.name + ' · ' + DAYS[dayIdx][0] + ' ' + DAYS[dayIdx][1] + ' Nov, ' + s.slot
+        ? svc.name + ' · ' + DAYS[dayIdx][0] + ' ' + DAYS[dayIdx][1] + ' ' + DAYS[dayIdx][3].slice(0, 3) + ', ' + s.slot
         : svc.name + ' · ' + svc.meta,
       disabled: !s.slot,
       ctaBg: s.slot ? INK : '#E6E7EB',
@@ -167,7 +185,9 @@ class HomePageLogic extends DCLogic {
       },
       booked: !!s.booked,
       notBooked: !s.booked,
-      doneLine: svc.name + ' · ' + DAYS[dayIdx][2] + ' ' + DAYS[dayIdx][1] + ' November, ' + (s.slot || ''),
+      doneLine:
+        svc.name + ' · ' + DAYS[dayIdx][2] + ' ' + DAYS[dayIdx][1] + ' ' + DAYS[dayIdx][3] + ', ' + (s.slot || ''),
+      month: DAYS[dayIdx][3],
       reset: function () {
         self.setState({ booked: false, slot: null });
       },
@@ -361,6 +381,13 @@ class HomePageLogic extends DCLogic {
         });
       },
       mini: mini,
+      toPreview: function (e) {
+        var el = document.getElementById('live-preview');
+        if (!el) return;
+        e.preventDefault();
+        var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+      },
       tabs: tabs,
       ind: ind,
       compare: compare,
@@ -368,7 +395,9 @@ class HomePageLogic extends DCLogic {
         self.setState({ copied: true });
         try {
           navigator.clipboard.writeText(
-            '<iframe src="' + ORIGIN + '/your-business?embed=true" title="Book an appointment" loading="lazy" style="width:100%;min-height:720px;border:0"></iframe>',
+            '<iframe src="' +
+              ORIGIN +
+              '/your-business?embed=true" title="Book an appointment" loading="lazy" style="width:100%;min-height:720px;border:0"></iframe>',
           );
         } catch (e) {}
       },
@@ -777,9 +806,8 @@ export default class HomePage extends HomePageLogic {
                 Launch a booking page or embed a scheduler on your website in minutes.
               </h1>
               <p style={{ margin: '0', fontSize: v.leadSize, lineHeight: '1.55', color: '#4A505C', maxWidth: '560px' }}>
-                Customers pick a service, a staff member and a time in a few taps. You get your own page at
-                {HOST}/your-business, a one-line embed for any website, two-way Google Calendar sync and instant email
-                alerts.
+                Customers pick a service, a staff member and a time in a few taps. You get your own page at {HOST}
+                /your-business, a one-line embed for any website, two-way Google Calendar sync and instant email alerts.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', maxWidth: '640px' }}>
                 <div
@@ -917,13 +945,15 @@ export default class HomePage extends HomePageLogic {
                 </span>
               </div>
               <a
-                href="/lumen-skin-studio"
+                href="#live-preview"
+                onClick={v.toPreview}
                 style={{ alignSelf: 'flex-start', fontSize: '14px', fontWeight: '600', color: '#0F1115' }}
               >
-                Or try the demo booking page
+                Or try the live preview
               </a>
             </div>
             <div
+              id="live-preview"
               style={{
                 flex: '1 1 360px',
                 maxWidth: '440px',
@@ -981,10 +1011,10 @@ export default class HomePage extends HomePageLogic {
                       flex: '0 0 auto',
                     }}
                   >
-                    LS
+                    YB
                   </span>
                   <span style={{ display: 'flex', flexDirection: 'column', minWidth: '0' }}>
-                    <span style={{ fontSize: '14px', lineHeight: '18px', fontWeight: '700' }}>Lumen Skin Studio</span>
+                    <span style={{ fontSize: '14px', lineHeight: '18px', fontWeight: '700' }}>Your Business Name</span>
                     <span
                       style={{
                         fontSize: '12px',
@@ -995,7 +1025,7 @@ export default class HomePage extends HomePageLogic {
                         textOverflow: 'ellipsis',
                       }}
                     >
-                      {HOST}/lumen-skin-studio
+                      {HOST}/your-business
                     </span>
                   </span>
                 </div>{' '}
@@ -1068,7 +1098,7 @@ export default class HomePage extends HomePageLogic {
                             color: '#5B616E',
                           }}
                         >
-                          2 · Day · November
+                          2 · Day · {v.mini?.month}
                         </span>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: '6px' }}>
                           {(v.mini?.days || []).map((md, md_i) => (
@@ -1522,14 +1552,14 @@ export default class HomePage extends HomePageLogic {
                       padding: '5px 10px',
                     }}
                   >
-                    {'Demo: '}
+                    {'Example: '}
                     {v.ind?.biz}
                   </span>
                   <a
-                    href="/lumen-skin-studio"
+                    href="/signup"
                     style={{ fontSize: '14px', fontWeight: '600', color: '#0F1115', marginLeft: '4px' }}
                   >
-                    Open the demo booking page
+                    Start with this template
                   </a>
                 </div>
               </div>
@@ -1786,8 +1816,7 @@ export default class HomePage extends HomePageLogic {
                       <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
                     </svg>
                     <span style={{ overflowWrap: 'anywhere' }}>
-                      {HOST}/
-                      <span style={{ color: v.accent }}>your-business</span>
+                      {HOST}/<span style={{ color: v.accent }}>your-business</span>
                     </span>
                   </span>
                   <code
@@ -2504,12 +2533,6 @@ export default class HomePage extends HomePageLogic {
                   Paste it into any page builder or HTML
                 </span>
               </div>
-              <a
-                href="/embed-demo"
-                style={{ alignSelf: 'flex-start', fontSize: '14px', fontWeight: '600', color: '#0F1115' }}
-              >
-                See it on a sample client website
-              </a>
             </div>
             <div style={{ flex: '1 1 460px', minWidth: '0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ background: '#1B1D22', borderRadius: '16px', overflow: 'hidden' }}>
@@ -3085,9 +3108,6 @@ export default class HomePage extends HomePageLogic {
               </a>
               <a href="/login" style={{ color: '#2B2F36', textDecoration: 'none' }}>
                 Log in
-              </a>
-              <a href="/lumen-skin-studio" style={{ color: '#2B2F36', textDecoration: 'none' }}>
-                Demo booking page
               </a>
             </nav>
             <nav
