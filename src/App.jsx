@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useLocationKey, navigate } from './lib/router.js';
 import { api, getMe } from './lib/api.js';
 import { isReservedSlug } from './lib/reserved.js';
+import { setupQuery } from './lib/site.js';
 import HomePage from './pages/HomePage.jsx';
 import AuthPage from './pages/AuthPage.jsx';
 import SetupPage from './pages/SetupPage.jsx';
@@ -107,7 +108,7 @@ function Auth({ mode }) {
   const r = useLoad(mode, async () => {
     const me = await getMe();
     if (me.user) {
-      navigate(me.businesses.length ? '/dashboard' : '/setup', { replace: true });
+      navigate(me.businesses.length ? '/dashboard' : '/setup' + setupQuery(), { replace: true });
       return undefined;
     }
     return me;

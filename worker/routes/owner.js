@@ -82,7 +82,7 @@ export async function createBusiness(env, request) {
     ...DEFAULT_HOURS.map((h) => env.DB.prepare('INSERT INTO hours (business_id, dow, is_open, open_min, close_min) VALUES (?, ?, ?, ?, ?)')
       .bind(id, h.dow, h.isOpen ? 1 : 0, h.open, h.close)),
     ...t.services.map((s, i) => serviceInsert(env, id, {
-      id: newId(), name: s.name, category: s.category, duration: s.duration, price: s.price, buffer: s.buffer || 0,
+      id: newId(), name: s.name, category: s.category, duration: s.duration, price: s.price, fromPrice: !!s.fromPrice, buffer: s.buffer || 0,
       description: s.description, active: true, isPackage: !!s.isPackage, badge: s.badge, includes: s.includes,
       addons: (s.addons || []).map((a) => ({ id: newId(), name: a.name, price: a.price })),
       questions: t.questions.map((q) => Object.assign({}, q, { id: newId() })), staffIds: [ownerStaff.id],

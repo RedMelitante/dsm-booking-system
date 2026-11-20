@@ -63,7 +63,7 @@ A cron trigger runs every 15 minutes (`worker/cron.js`). It sends reminders, the
 
 **Owners**
 - Sign up and log in with email and password (PBKDF2-hashed), or with Google. Sessions are HttpOnly cookies. Failed logins are rate-limited, and passwords can be reset by email.
-- Two-step setup: the business name and booking address are checked against the database as you type (reserved words, taken addresses with suggestions). Then choose a template (clinic, salon, events, or blank), currency and time zone. The template creates sample services, intake questions, default hours and a staff member.
+- Two-step setup: the business name and booking address are checked against the database as you type (reserved words, taken addresses with suggestions). Then choose a template (clinic, salon, events, home & field services, or blank), currency and time zone. The template creates sample services, intake questions, default hours and a staff member.
 - Dashboard (each tab has its own URL):
   - **Bookings**: real week calendar and list, with week navigation, staff filter, overlapping bookings in lanes, and closed hours hatched. The booking drawer has confirm, decline, cancel, reschedule (shows only free times), private notes and "book again".
   - **Services & packages**: create, edit, hide and delete services and packages, with add-ons, staff assignment and per-service intake questions (short answer, paragraph, yes/no, multiple choice with options).

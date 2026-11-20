@@ -45,6 +45,9 @@ class SetupPageLogic extends DCLogic {
       this.state.slug = this.slugify(qs.get('slug'));
       this.state.slugEdited = true;
     }
+    // "Start with this template" on the homepage passes ?template=clinic|salon|events|home.
+    if (['clinic', 'salon', 'events', 'home', 'blank'].indexOf(qs.get('template')) >= 0)
+      this.state.template = qs.get('template');
     this.rootRef = (el) => {
       this.el = el;
     };
@@ -216,6 +219,14 @@ class SetupPageLogic extends DCLogic {
         services: ['2-hour package', 'Wedding package', 'Extra hour add-on'],
         qs: 3,
       },
+      {
+        id: 'home',
+        label: 'Home & Field Services',
+        desc: 'Cleaning, landscaping, plumbing, electrical and handyman',
+        noun: 'Technician',
+        services: ['Standard home cleaning', 'Handyman visit', 'Lawn mowing & garden tidy'],
+        qs: 3,
+      },
     ];
     var templates = TPL.map(function (t) {
       var on = s.template === t.id;
@@ -228,6 +239,7 @@ class SetupPageLogic extends DCLogic {
         isClinic: t.id === 'clinic',
         isSalon: t.id === 'salon',
         isEvents: t.id === 'events',
+        isHome: t.id === 'home',
         bg: on ? SOFT : '#FFFFFF',
         border: on ? ACC : LINE,
         ring: on ? ACC : 'transparent',
@@ -854,7 +866,7 @@ export default class SetupPage extends SetupPageLogic {
                       aria-label="Industry template"
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                         gap: '10px',
                       }}
                     >
@@ -946,6 +958,25 @@ export default class SetupPage extends SetupPageLogic {
                                     <rect x="3" y="7" width="18" height="13" rx="2.5" />
                                     <path d="M8.5 7l1.5-3h4l1.5 3" />
                                     <circle cx="12" cy="13.5" r="3.5" />
+                                  </svg>
+                                </>
+                              ) : null}
+                              {tp?.isHome ? (
+                                <>
+                                  <svg
+                                    aria-hidden="true"
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.9"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M3.5 11.5L12 4.5l8.5 7" />
+                                    <path d="M5.5 10v9.5h13V10" />
+                                    <path d="M10 19.5v-5h4v5" />
                                   </svg>
                                 </>
                               ) : null}
