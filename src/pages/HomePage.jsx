@@ -275,6 +275,31 @@ class HomePageLogic extends DCLogic {
         opts: ['Wedding', 'Birthday', 'Corporate'],
         deposit: '30% deposit ($135) due after the business confirms',
       },
+      home: {
+        label: 'Home & Field Services',
+        biz: 'Your Service Business',
+        initials: 'YB',
+        place: 'Your Service Area',
+        template: 'Home & Field Services',
+        times: ['8:00 AM', '10:30 AM', '1:00 PM', '3:30 PM'],
+        accent: '#0F766E',
+        noun: 'Technician',
+        desc: 'For cleaners, landscapers, plumbers, electricians and handymen. Customers book a visit at their address, describe the job up front, and you get travel time between visits.',
+        points: [
+          'Staff appear as Technicians, each with their own calendar',
+          'Service address, property type and access questions ready to edit',
+          'Travel time between visits so the day stays realistic',
+          '"From" pricing for jobs you quote on site',
+        ],
+        services: [
+          ['Standard home cleaning', '2 hrs', '$120'],
+          ['Handyman visit', '1 hr', 'from $80'],
+          ['Lawn mowing & garden tidy', '1 hr 30 min', '$90'],
+        ],
+        q: 'What type of property is it?',
+        opts: ['House', 'Apartment', 'Office'],
+        deposit: '',
+      },
     };
     var tabKey = IND[s.tab] ? s.tab : 'salon';
     var I = IND[tabKey];
@@ -392,6 +417,7 @@ class HomePageLogic extends DCLogic {
       ['clinic', 'Clinics & Medical'],
       ['salon', 'Salons & Wellness'],
       ['events', 'Events & Rentals'],
+      ['home', 'Home & Field Services'],
     ].map(function (t) {
       var on = t[0] === tabKey;
       return {
@@ -400,6 +426,7 @@ class HomePageLogic extends DCLogic {
         isClinic: t[0] === 'clinic',
         isSalon: t[0] === 'salon',
         isEvents: t[0] === 'events',
+        isHome: t[0] === 'home',
         bg: on ? '#FFFFFF' : 'transparent',
         fg: on ? INK : '#4A505C',
         shadow: on ? '0 1px 2px rgba(16,17,21,0.12)' : 'none',
@@ -882,7 +909,7 @@ export default class HomePage extends HomePageLogic {
                   aria-hidden="true"
                   style={{ width: '8px', height: '8px', borderRadius: '999px', background: v.accent }}
                 />
-                {' For clinics, salons and event businesses'}
+                {' For clinics, salons, events and home services'}
               </span>
               <h1
                 style={{
@@ -1536,6 +1563,25 @@ export default class HomePage extends HomePageLogic {
                           <rect x="3" y="7" width="18" height="13" rx="2.5" />
                           <path d="M8.5 7l1.5-3h4l1.5 3" />
                           <circle cx="12" cy="13.5" r="3.5" />
+                        </svg>
+                      </>
+                    ) : null}
+                    {tb?.isHome ? (
+                      <>
+                        <svg
+                          aria-hidden="true"
+                          width="17"
+                          height="17"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.9"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M3.5 11.5L12 4.5l8.5 7" />
+                          <path d="M5.5 10v9.5h13V10" />
+                          <path d="M10 19.5v-5h4v5" />
                         </svg>
                       </>
                     ) : null}{' '}
@@ -3373,7 +3419,7 @@ export default class HomePage extends HomePageLogic {
                 </span>
               </span>
               <span style={{ fontSize: '14px', lineHeight: '21px', color: '#4A505C', maxWidth: '320px' }}>
-                Booking pages and website scheduling for clinics, salons and event businesses.
+                Booking pages and website scheduling for clinics, salons, events and home services.
               </span>
             </div>
             <nav

@@ -92,6 +92,25 @@ export const TEMPLATES = {
       { name: 'Wedding package', category: 'pkg', isPackage: true, badge: '5 hours', duration: 300, price: 1450, buffer: 60, description: 'Built for receptions: setup, attendant and guest book on the day.', includes: ['5 hours on site', 'Guest book with attendant'], addons: [{ name: 'Extra hour', price: 150 }] },
     ],
   },
+  home: {
+    kind: 'Home services',
+    svcNoun: 'service', staffNoun: 'Technician', anyName: 'Any available technician', anyRole: 'Earliest arrival',
+    staffSub: 'Pick a technician you know, or take the earliest available visit.',
+    policy: 'Free rescheduling up to 24 hours before your visit. Please make sure someone can let us in.',
+    staffRole: 'Technician',
+    categories: [['all', 'All'], ['pkg', 'Packages'], ['cleaning', 'Cleaning'], ['repairs', 'Repairs'], ['outdoor', 'Outdoor']],
+    questions: [
+      q('q1', 'Service address', 'short', true),
+      q('q2', 'What type of property is it?', 'select', true, ['House', 'Apartment or condo', 'Office or shop']),
+      q('q3', 'Anything we should know before we arrive? (Parking, pets, gate code)', 'long', false),
+    ],
+    // The buffer doubles as travel time between visits.
+    services: [
+      { name: 'Standard home cleaning', category: 'cleaning', duration: 120, price: 120, buffer: 30, description: 'Kitchen, bathrooms, dusting, vacuuming and mopping throughout.' },
+      { name: 'Handyman visit', category: 'repairs', duration: 60, price: 80, fromPrice: true, buffer: 30, description: 'First hour of small repairs and installs. Larger jobs are quoted on site.' },
+      { name: 'Lawn mowing & garden tidy', category: 'outdoor', duration: 90, price: 90, buffer: 30, description: 'Mowing, edging, weeding and green waste taken away.' },
+    ],
+  },
   blank: {
     kind: '',
     svcNoun: 'service', staffNoun: 'Staff member', anyName: 'Anyone available', anyRole: 'Most availability',
