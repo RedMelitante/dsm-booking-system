@@ -45,6 +45,8 @@ class SetupPageLogic extends DCLogic {
       this.state.slug = this.slugify(qs.get('slug'));
       this.state.slugEdited = true;
     }
+    // "Start with this template" on the homepage passes ?template=clinic|salon|events.
+    if (['clinic', 'salon', 'events', 'blank'].indexOf(qs.get('template')) >= 0) this.state.template = qs.get('template');
     this.rootRef = (el) => {
       this.el = el;
     };

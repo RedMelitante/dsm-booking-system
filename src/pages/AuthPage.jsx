@@ -4,6 +4,7 @@ import React from 'react';
 import { DCLogic } from '../lib/dc.js';
 import { api, getMe, clearMe } from '../lib/api.js';
 import { navigate } from '../lib/router.js';
+import { setupQuery } from '../lib/site.js';
 
 class AuthPageLogic extends DCLogic {
   constructor(...args) {
@@ -50,8 +51,8 @@ class AuthPageLogic extends DCLogic {
     var q = new URLSearchParams(window.location.search);
     var next = q.get('next');
     if (next && next.charAt(0) === '/' && next.charAt(1) !== '/') return next;
-    if (this.isLoginMode(this.props)) return me.businesses && me.businesses.length ? '/dashboard' : '/setup';
-    return '/setup' + (q.get('slug') ? '?slug=' + encodeURIComponent(q.get('slug')) : '');
+    if (me.businesses && me.businesses.length) return '/dashboard';
+    return '/setup' + setupQuery();
   }
 
   // Validates on the client first, then calls the API.
@@ -193,7 +194,7 @@ class AuthPageLogic extends DCLogic {
       switchLead: login ? 'New here?' : 'Already have an account?',
       switchLabel: login ? (narrow ? 'Sign up' : 'Create an account') : 'Log in',
       brandSize: narrow ? '15px' : '17px',
-      switchHref: login ? '/signup' : '/login',
+      switchHref: (login ? '/signup' : '/login') + setupQuery(),
       showBanner: serverErr,
       name: s.name,
       email: s.email,

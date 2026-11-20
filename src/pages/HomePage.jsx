@@ -11,6 +11,11 @@ class HomePageLogic extends DCLogic {
       w: 0,
       menu: false,
       tab: 'salon',
+      iSvc: 0,
+      iAns: 0,
+      iStep: 1,
+      iStaff: 0,
+      iTime: null,
       svc: 's1',
       day: 0,
       slot: null,
@@ -197,9 +202,11 @@ class HomePageLogic extends DCLogic {
     var IND = {
       clinic: {
         label: 'Clinics & Medical',
-        biz: 'Brightside Dental Care',
-        initials: 'BD',
-        place: 'IT Park, Cebu City',
+        biz: 'Your Clinic Name',
+        initials: 'YC',
+        place: 'Your City, Location',
+        template: 'Dental & Medical Clinic',
+        times: ['9:00 AM', '10:30 AM', '1:00 PM', '2:30 PM', '4:00 PM'],
         accent: '#1D4ED8',
         noun: 'Dentist',
         desc: 'For dental, medical, physio and aesthetic clinics. Patients choose a treatment and a practitioner, answer intake questions before they arrive, and get reminder emails before the visit.',
@@ -220,9 +227,11 @@ class HomePageLogic extends DCLogic {
       },
       salon: {
         label: 'Salons & Wellness',
-        biz: 'Lumen Skin Studio',
-        initials: 'LS',
-        place: 'Poblacion, Makati City',
+        biz: 'Your Studio Name',
+        initials: 'YS',
+        place: 'Your City, Location',
+        template: 'Salon & Wellness Studio',
+        times: ['9:30 AM', '11:00 AM', '1:30 PM', '3:00 PM', '5:30 PM'],
         accent: '#5B4BDB',
         noun: 'Professional',
         desc: 'For skin studios, salons, spas and massage therapists. Clients pick a treatment, add extras, and choose a favourite professional or whoever is free first.',
@@ -243,9 +252,11 @@ class HomePageLogic extends DCLogic {
       },
       events: {
         label: 'Events & Rentals',
-        biz: 'Snapshot Booth Co.',
-        initials: 'SB',
-        place: 'Los Angeles & Orange County',
+        biz: 'Your Event Company',
+        initials: 'YE',
+        place: 'Your City, Location',
+        template: 'Event & Booth Rental',
+        times: ['10:00 AM', '2:00 PM', '6:00 PM'],
         accent: '#B4235A',
         noun: 'Booth',
         desc: 'For photo booths, venues, equipment and party rentals. Customers book a resource by the hour, add extras, and tell you about the venue up front.',
@@ -268,6 +279,12 @@ class HomePageLogic extends DCLogic {
     var tabKey = IND[s.tab] ? s.tab : 'salon';
     var I = IND[tabKey];
     var iSoft = this.mix(this.rgb(I.accent), 0.09);
+    // Frontend-only preview: local state, nothing is saved.
+    var iSvc = I.services[s.iSvc] || I.services[0];
+    var iAns = s.iAns === null ? null : I.opts[s.iAns];
+    var nounLower = I.noun.toLowerCase();
+    var iStaffList = ['Any available ' + nounLower, I.noun + ' 1', I.noun + ' 2'];
+    var iCan = [false, iAns !== null && iAns !== undefined, true, s.iTime !== null, false][s.iStep];
     var ind = {
       label: I.label,
       biz: I.biz,
@@ -279,21 +296,95 @@ class HomePageLogic extends DCLogic {
       desc: I.desc,
       points: I.points,
       q: I.q,
+      template: I.template,
+      templateHref: '/signup?template=' + tabKey,
+      isStep1: s.iStep === 1,
+      isStep2: s.iStep === 2,
+      isStep3: s.iStep === 3,
+      isDone: s.iStep === 4,
+      stepLabel: [
+        '',
+        'Step 1 of 4 · Service',
+        'Step 2 of 4 · ' + I.noun,
+        'Step 3 of 4 · Date & time',
+        'Step 4 of 4 · Details',
+      ][s.iStep],
+      summary: iSvc[0] + ' · ' + iSvc[2],
       services: I.services.map(function (r, i) {
-        var on = i === 0;
+        var on = r === iSvc;
         return {
           name: r[0],
           meta: r[1],
           price: r[2],
+          on: on,
           bg: on ? iSoft : '#FFFFFF',
           border: on ? I.accent : LINE,
           ring: on ? I.accent : 'transparent',
+          pick: function () {
+            self.setState({ iSvc: i });
+          },
         };
       }),
       opts: I.opts.map(function (o, i) {
-        var on = i === 0;
-        return { label: o, bg: on ? iSoft : '#FFFFFF', border: on ? I.accent : LINE2, weight: on ? 700 : 500 };
+        var on = i === s.iAns;
+        return {
+          label: o,
+          on: on,
+          bg: on ? iSoft : '#FFFFFF',
+          border: on ? I.accent : LINE2,
+          weight: on ? 700 : 500,
+          pick: function () {
+            self.setState({ iAns: self.state.iAns === i ? null : i });
+          },
+        };
       }),
+      staff: iStaffList.map(function (n, i) {
+        var on = i === s.iStaff;
+        return {
+          name: n,
+          initials: i === 0 ? 'ANY' : I.noun.charAt(0) + i,
+          avBg: i === 0 ? iSoft : I.accent,
+          avFg: i === 0 ? I.accent : '#FFFFFF',
+          on: on,
+          bg: on ? iSoft : '#FFFFFF',
+          border: on ? I.accent : LINE,
+          ring: on ? I.accent : 'transparent',
+          pick: function () {
+            self.setState({ iStaff: i });
+          },
+        };
+      }),
+      times: I.times.map(function (t) {
+        var on = t === s.iTime;
+        return {
+          label: t,
+          on: on,
+          bg: on ? I.accent : '#FFFFFF',
+          fg: on ? '#FFFFFF' : INK,
+          border: on ? I.accent : LINE2,
+          pick: function () {
+            self.setState({ iTime: t });
+          },
+        };
+      }),
+      doneLine: iSvc[0] + ' · ' + iStaffList[s.iStaff] + ' · Tomorrow, ' + (s.iTime || ''),
+      doneAnswer: iAns ? I.q + ' ' + iAns : '',
+      canContinue: iCan,
+      ctaBg: iCan ? '#0F1115' : '#E6E7EB',
+      ctaFg: iCan ? '#FFFFFF' : '#6B7280',
+      ctaCursor: iCan ? 'pointer' : 'not-allowed',
+      ctaHint: ['', 'Answer the question to continue.', '', 'Pick a time to continue.', ''][s.iStep],
+      showHint: !iCan && s.iStep < 4,
+      canBack: s.iStep > 1 && s.iStep < 4,
+      next: function () {
+        if (iCan) self.setState({ iStep: self.state.iStep + 1 });
+      },
+      back: function () {
+        self.setState({ iStep: Math.max(1, self.state.iStep - 1) });
+      },
+      restart: function () {
+        self.setState({ iStep: 1, iSvc: 0, iAns: 0, iStaff: 0, iTime: null });
+      },
       hasDeposit: !!I.deposit,
       deposit: I.deposit,
     };
@@ -313,7 +404,7 @@ class HomePageLogic extends DCLogic {
         fg: on ? INK : '#4A505C',
         shadow: on ? '0 1px 2px rgba(16,17,21,0.12)' : 'none',
         pick: function () {
-          self.setState({ tab: t[0] });
+          self.setState({ tab: t[0], iStep: 1, iSvc: 0, iAns: 0, iStaff: 0, iTime: null });
         },
       };
     });
@@ -1552,11 +1643,11 @@ export default class HomePage extends HomePageLogic {
                       padding: '5px 10px',
                     }}
                   >
-                    {'Example: '}
-                    {v.ind?.biz}
+                    {'Template: '}
+                    {v.ind?.template}
                   </span>
                   <a
-                    href="/signup"
+                    href={v.ind?.templateHref}
                     style={{ fontSize: '14px', fontWeight: '600', color: '#0F1115', marginLeft: '4px' }}
                   >
                     Start with this template
@@ -1619,95 +1710,320 @@ export default class HomePage extends HomePageLogic {
                       color: '#5B616E',
                     }}
                   >
-                    Step 1 of 4 · Service
+                    {v.ind?.stepLabel}
                   </span>
-                  {(v.ind?.services || []).map((is, is_i) => (
-                    <React.Fragment key={is_i}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          padding: '10px 12px',
-                          borderRadius: '12px',
-                          border: `1px solid ${is?.border}`,
-                          boxShadow: `0 0 0 1px ${is?.ring}`,
-                          background: is?.bg,
-                        }}
-                      >
-                        <span style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', minWidth: '0' }}>
-                          <span style={{ fontSize: '14px', lineHeight: '18px', fontWeight: '600' }}>{is?.name}</span>
-                          <span style={{ fontSize: '12px', lineHeight: '16px', color: '#5B616E' }}>{is?.meta}</span>
-                        </span>
-                        <span style={{ fontSize: '14px', fontWeight: '700', whiteSpace: 'nowrap' }}>{is?.price}</span>
-                      </div>
-                    </React.Fragment>
-                  ))}
-                  <div
-                    style={{
-                      borderTop: '1px solid #EEEFF2',
-                      paddingTop: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                    }}
-                  >
-                    <span style={{ fontSize: '13px', lineHeight: '18px', fontWeight: '600' }}>
-                      {v.ind?.q} <span style={{ color: '#C2362B' }}>*</span>
-                    </span>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                      {(v.ind?.opts || []).map((io, io_i) => (
-                        <React.Fragment key={io_i}>
-                          <span
+                  {v.ind?.isStep1 ? (
+                    <>
+                      {(v.ind?.services || []).map((is, is_i) => (
+                        <React.Fragment key={is_i}>
+                          <button
+                            type="button"
+                            onClick={is?.pick}
+                            aria-pressed={is?.on}
                             style={{
-                              height: '34px',
-                              padding: '0 12px',
-                              borderRadius: '999px',
-                              border: `1px solid ${io?.border}`,
-                              background: io?.bg,
-                              fontSize: '13px',
-                              fontWeight: io?.weight,
                               display: 'flex',
                               alignItems: 'center',
+                              gap: '10px',
+                              width: '100%',
+                              padding: '10px 12px',
+                              borderRadius: '12px',
+                              fontFamily: 'inherit',
+                              color: '#0F1115',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              boxSizing: 'border-box',
+                              border: `1px solid ${is?.border}`,
+                              boxShadow: `0 0 0 1px ${is?.ring}`,
+                              background: is?.bg,
                             }}
                           >
-                            {io?.label}
-                          </span>
+                            <span style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', minWidth: '0' }}>
+                              <span style={{ fontSize: '14px', lineHeight: '18px', fontWeight: '600' }}>
+                                {is?.name}
+                              </span>
+                              <span style={{ fontSize: '12px', lineHeight: '16px', color: '#5B616E' }}>{is?.meta}</span>
+                            </span>
+                            <span style={{ fontSize: '14px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                              {is?.price}
+                            </span>
+                          </button>
                         </React.Fragment>
                       ))}
-                    </div>
-                  </div>
-                  {v.ind?.hasDeposit ? (
-                    <>
-                      <span
+                      <div
                         style={{
-                          fontSize: '12px',
-                          lineHeight: '16px',
-                          color: '#4A505C',
-                          background: '#F7F7F8',
-                          borderRadius: '8px',
-                          padding: '8px 10px',
+                          borderTop: '1px solid #EEEFF2',
+                          paddingTop: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
                         }}
                       >
-                        {v.ind?.deposit}
-                      </span>
+                        <span style={{ fontSize: '13px', lineHeight: '18px', fontWeight: '600' }}>
+                          {v.ind?.q} <span style={{ color: '#C2362B' }}>*</span>
+                        </span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {(v.ind?.opts || []).map((io, io_i) => (
+                            <React.Fragment key={io_i}>
+                              <button
+                                type="button"
+                                onClick={io?.pick}
+                                aria-pressed={io?.on}
+                                style={{
+                                  height: '34px',
+                                  padding: '0 12px',
+                                  borderRadius: '999px',
+                                  border: `1px solid ${io?.border}`,
+                                  background: io?.bg,
+                                  color: '#0F1115',
+                                  fontFamily: 'inherit',
+                                  fontSize: '13px',
+                                  fontWeight: io?.weight,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                {io?.label}
+                              </button>
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                      {v.ind?.hasDeposit ? (
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            lineHeight: '16px',
+                            color: '#4A505C',
+                            background: '#F7F7F8',
+                            borderRadius: '8px',
+                            padding: '8px 10px',
+                          }}
+                        >
+                          {v.ind?.deposit}
+                        </span>
+                      ) : null}
                     </>
                   ) : null}
-                  <span
-                    style={{
-                      height: '44px',
-                      borderRadius: '12px',
-                      background: '#0F1115',
-                      color: '#FFFFFF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '14px',
-                      fontWeight: '700',
-                    }}
-                  >
-                    Continue
-                  </span>
+                  {v.ind?.isStep2 ? (
+                    <>
+                      <span style={{ fontSize: '13px', lineHeight: '18px', color: '#4A505C' }}>{v.ind?.summary}</span>
+                      {(v.ind?.staff || []).map((st, st_i) => (
+                        <React.Fragment key={st_i}>
+                          <button
+                            type="button"
+                            onClick={st?.pick}
+                            aria-pressed={st?.on}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              width: '100%',
+                              padding: '10px 12px',
+                              borderRadius: '12px',
+                              fontFamily: 'inherit',
+                              color: '#0F1115',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              boxSizing: 'border-box',
+                              border: `1px solid ${st?.border}`,
+                              boxShadow: `0 0 0 1px ${st?.ring}`,
+                              background: st?.bg,
+                            }}
+                          >
+                            <span
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '999px',
+                                background: st?.avBg,
+                                color: st?.avFg,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                flex: '0 0 auto',
+                              }}
+                            >
+                              {st?.initials}
+                            </span>
+                            <span style={{ fontSize: '14px', lineHeight: '18px', fontWeight: '600' }}>{st?.name}</span>
+                          </button>
+                        </React.Fragment>
+                      ))}
+                    </>
+                  ) : null}
+                  {v.ind?.isStep3 ? (
+                    <>
+                      <span style={{ fontSize: '13px', lineHeight: '18px', fontWeight: '600' }}>Tomorrow</span>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
+                          gap: '8px',
+                        }}
+                      >
+                        {(v.ind?.times || []).map((tm, tm_i) => (
+                          <React.Fragment key={tm_i}>
+                            <button
+                              type="button"
+                              onClick={tm?.pick}
+                              aria-pressed={tm?.on}
+                              style={{
+                                height: '40px',
+                                borderRadius: '10px',
+                                border: `1px solid ${tm?.border}`,
+                                background: tm?.bg,
+                                color: tm?.fg,
+                                fontFamily: 'inherit',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
+                              {tm?.label}
+                            </button>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
+                  {v.ind?.isDone ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        padding: '8px 0',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '999px',
+                          background: '#E7F6EE',
+                          color: '#0E7A4F',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <svg
+                          aria-hidden="true"
+                          width="22"
+                          height="22"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M5 12.5l4.5 4.5L19 7.5" />
+                        </svg>
+                      </span>
+                      <span style={{ fontSize: '15px', fontWeight: '700' }}>This is what your customers see</span>
+                      <span style={{ fontSize: '13px', lineHeight: '18px', color: '#4A505C' }}>{v.ind?.doneLine}</span>
+                      {v.ind?.doneAnswer ? (
+                        <span style={{ fontSize: '12px', lineHeight: '16px', color: '#5B616E' }}>
+                          {v.ind?.doneAnswer}
+                        </span>
+                      ) : null}
+                      <span style={{ fontSize: '12px', lineHeight: '16px', color: '#5B616E' }}>
+                        Preview only. Nothing was booked.
+                      </span>
+                      <a
+                        href={v.ind?.templateHref}
+                        style={{
+                          width: '100%',
+                          height: '44px',
+                          borderRadius: '12px',
+                          background: '#0F1115',
+                          color: '#FFFFFF',
+                          textDecoration: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '14px',
+                          fontWeight: '700',
+                        }}
+                      >
+                        Start with this template
+                      </a>
+                      <button
+                        type="button"
+                        onClick={v.ind?.restart}
+                        style={{
+                          border: '0',
+                          background: 'transparent',
+                          padding: '4px',
+                          fontFamily: 'inherit',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          color: '#0F1115',
+                          textDecoration: 'underline',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Try it again
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {v.ind?.canBack ? (
+                          <button
+                            type="button"
+                            onClick={v.ind?.back}
+                            style={{
+                              flex: '0 0 auto',
+                              height: '44px',
+                              padding: '0 14px',
+                              borderRadius: '12px',
+                              border: '1px solid #D9DBE1',
+                              background: '#FFFFFF',
+                              color: '#0F1115',
+                              fontFamily: 'inherit',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Back
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={v.ind?.next}
+                          aria-disabled={!v.ind?.canContinue}
+                          style={{
+                            flex: '1 1 auto',
+                            height: '44px',
+                            borderRadius: '12px',
+                            border: '0',
+                            background: v.ind?.ctaBg,
+                            color: v.ind?.ctaFg,
+                            fontFamily: 'inherit',
+                            fontSize: '14px',
+                            fontWeight: '700',
+                            cursor: v.ind?.ctaCursor,
+                          }}
+                        >
+                          Continue
+                        </button>
+                      </div>
+                      {v.ind?.showHint ? (
+                        <span style={{ fontSize: '12px', lineHeight: '16px', color: '#5B616E', textAlign: 'center' }}>
+                          {v.ind?.ctaHint}
+                        </span>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
